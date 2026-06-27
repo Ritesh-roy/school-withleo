@@ -45,7 +45,7 @@ import {
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_app/members")({
-  head: () => ({ meta: [{ title: "Membership — Smart School ERP" }] }),
+  head: () => ({ meta: [{ title: "Membership — School withleo" }] }),
   component: Members,
 });
 

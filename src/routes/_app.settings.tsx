@@ -18,7 +18,7 @@ import {
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_app/settings")({
-  head: () => ({ meta: [{ title: "Settings — Smart School ERP" }] }),
+  head: () => ({ meta: [{ title: "Settings — School withleo" }] }),
   component: SettingsPage,
 });
 

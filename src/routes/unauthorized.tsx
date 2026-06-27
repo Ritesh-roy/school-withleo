@@ -2,7 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { ShieldAlert } from "lucide-react";
 
 export const Route = createFileRoute("/unauthorized")({
-  head: () => ({ meta: [{ title: "Access Denied — Smart School ERP" }] }),
+  head: () => ({ meta: [{ title: "Access Denied — School withleo" }] }),
   component: UnauthorizedPage,
 });
 
