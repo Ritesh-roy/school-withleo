@@ -448,15 +448,15 @@ function BookMaster() {
           </Field>
         </div>
         <div className="mt-4 flex justify-end gap-2">
-          <Button onClick={save}>
+          <Button type="submit">
             <Save className="mr-2 h-4 w-4" />
             {editId ? "Update" : "Save"}
           </Button>
-          <Button variant="outline" onClick={reset}>
+          <Button type="button" variant="outline" onClick={reset}>
             <RotateCcw className="mr-2 h-4 w-4" /> Reset
           </Button>
         </div>
-      </div>
+      </form>
 
       <div className="mt-6">
         <DataTable
