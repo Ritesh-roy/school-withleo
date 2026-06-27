@@ -1,8 +1,9 @@
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { BookOpen, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth, ROLE_LABELS, type AppRole } from "@/lib/auth";
+import { seedDemoUsers } from "@/lib/seed-users.functions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -40,6 +41,13 @@ function AuthPage() {
   const { user, loading } = useAuth();
   const [tab, setTab] = useState("login");
   const [busy, setBusy] = useState(false);
+  const seededRef = useRef(false);
+
+  useEffect(() => {
+    if (seededRef.current) return;
+    seededRef.current = true;
+    seedDemoUsers().catch((e) => console.warn("Demo seed skipped:", e));
+  }, []);
 
   // login
   const [email, setEmail] = useState("");
