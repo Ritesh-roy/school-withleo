@@ -7,7 +7,7 @@ import { DataTable, type Column } from "@/components/library/DataTable";
 import { fmtDate } from "@/lib/helpers";
 
 export const Route = createFileRoute("/_app/activity")({
-  head: () => ({ meta: [{ title: "Activity Logs — Smart School ERP" }] }),
+  head: () => ({ meta: [{ title: "Activity Logs — School withleo" }] }),
   component: Activity,
 });
 

@@ -29,7 +29,7 @@ import { StatCard } from "@/components/library/StatCard";
 import { currency, fmtDate } from "@/lib/helpers";
 
 export const Route = createFileRoute("/_app/dashboard")({
-  head: () => ({ meta: [{ title: "Library Dashboard — Smart School ERP" }] }),
+  head: () => ({ meta: [{ title: "Library Dashboard — School withleo" }] }),
   component: Dashboard,
 });
 

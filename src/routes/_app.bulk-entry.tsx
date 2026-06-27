@@ -26,7 +26,7 @@ import {
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_app/bulk-entry")({
-  head: () => ({ meta: [{ title: "Bulk Entry — Smart School ERP" }] }),
+  head: () => ({ meta: [{ title: "Bulk Entry — School withleo" }] }),
   component: BulkEntry,
 });
 

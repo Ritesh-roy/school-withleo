@@ -39,7 +39,7 @@ import {
 import { currency, fmtDate, todayISO } from "@/lib/helpers";
 
 export const Route = createFileRoute("/_app/reports")({
-  head: () => ({ meta: [{ title: "Library Reports — Smart School ERP" }] }),
+  head: () => ({ meta: [{ title: "Library Reports — School withleo" }] }),
   component: Reports,
 });
 

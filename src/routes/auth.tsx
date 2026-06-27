@@ -124,7 +124,7 @@ function AuthPage() {
             <BookOpen className="h-6 w-6" />
           </div>
           <div>
-            <p className="text-lg font-bold leading-tight">Smart School ERP</p>
+            <p className="text-lg font-bold leading-tight">School withleo</p>
             <p className="text-sm text-topbar-foreground/70">Library Management</p>
           </div>
         </div>
@@ -141,7 +141,7 @@ function AuthPage() {
           </p>
         </div>
         <p className="text-sm text-topbar-foreground/60">
-          © {new Date().getFullYear()} Smart School ERP
+          © {new Date().getFullYear()} School withleo
         </p>
       </div>
 
@@ -149,7 +149,7 @@ function AuthPage() {
         <div className="w-full max-w-md">
           <div className="mb-6 flex items-center gap-2 lg:hidden">
             <BookOpen className="h-6 w-6 text-primary" />
-            <span className="text-lg font-bold">Smart School ERP</span>
+            <span className="text-lg font-bold">School withleo</span>
           </div>
           <Tabs value={tab} onValueChange={setTab}>
             <TabsList className="grid w-full grid-cols-2">

@@ -48,7 +48,7 @@ import {
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_app/books")({
-  head: () => ({ meta: [{ title: "Book Master — Smart School ERP" }] }),
+  head: () => ({ meta: [{ title: "Book Master — School withleo" }] }),
   component: BookMaster,
 });
 

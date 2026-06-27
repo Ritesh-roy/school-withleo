@@ -27,7 +27,7 @@ import { handleFormKeyDown, validators } from "@/lib/form-utils";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_app/issue")({
-  head: () => ({ meta: [{ title: "Issue Book — Smart School ERP" }] }),
+  head: () => ({ meta: [{ title: "Issue Book — School withleo" }] }),
   component: IssueBook,
 });
 

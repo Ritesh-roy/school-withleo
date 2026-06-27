@@ -1,5 +1,6 @@
 import { Menu, Moon, Sun, LogOut, UserCircle } from "lucide-react";
 import { useAuth, ROLE_LABELS } from "@/lib/auth";
+import logo from "@/assets/school-withleo-logo.png.asset.json";
 import { useTheme } from "@/lib/theme";
 import {
   DropdownMenu,
@@ -24,7 +25,8 @@ export function Topbar({ onMenu }: { onMenu: () => void }) {
       >
         <Menu className="h-5 w-5" />
       </button>
-      <h1 className="text-lg font-bold">Smart School ERP</h1>
+      <img src={logo.url} alt="School withleo" className="h-8 w-8 rounded-md bg-white/10 object-contain p-0.5" />
+      <h1 className="text-lg font-bold">School withleo</h1>
       <div className="ml-auto flex items-center gap-1 sm:gap-3">
         <button
           onClick={toggle}

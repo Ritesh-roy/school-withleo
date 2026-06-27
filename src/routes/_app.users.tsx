@@ -16,7 +16,7 @@ import { fmtDate, logActivity } from "@/lib/helpers";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_app/users")({
-  head: () => ({ meta: [{ title: "Users & Roles — Smart School ERP" }] }),
+  head: () => ({ meta: [{ title: "Users & Roles — School withleo" }] }),
   component: UsersPage,
 });
 

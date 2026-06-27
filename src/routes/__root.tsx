@@ -80,14 +80,14 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Smart School ERP — Library Management System" },
+      { title: "School withleo — Library Management System" },
       {
         name: "description",
         content:
           "Modern School ERP and Library Management System: catalogue books, manage members, issue and return books, track fines, and generate reports.",
       },
       { name: "author", content: "Smart School" },
-      { property: "og:title", content: "Smart School ERP — Library Management System" },
+      { property: "og:title", content: "School withleo — Library Management System" },
       {
         property: "og:description",
         content:
@@ -96,7 +96,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
       { name: "twitter:site", content: "@Lovable" },
-      { name: "twitter:title", content: "Smart School ERP — Library Management System" },
+      { name: "twitter:title", content: "School withleo — Library Management System" },
       { name: "description", content: "EduFlow Suite is a comprehensive School ERP and Library Management System." },
       { property: "og:description", content: "EduFlow Suite is a comprehensive School ERP and Library Management System." },
       { name: "twitter:description", content: "EduFlow Suite is a comprehensive School ERP and Library Management System." },

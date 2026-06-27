@@ -26,7 +26,7 @@ import { printRows } from "@/lib/exports";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_app/return")({
-  head: () => ({ meta: [{ title: "Return Book — Smart School ERP" }] }),
+  head: () => ({ meta: [{ title: "Return Book — School withleo" }] }),
   component: ReturnBook,
 });
 

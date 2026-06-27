@@ -32,7 +32,7 @@ import { handleFormKeyDown, validators } from "@/lib/form-utils";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_app/library-master")({
-  head: () => ({ meta: [{ title: "Library Master — Smart School ERP" }] }),
+  head: () => ({ meta: [{ title: "Library Master — School withleo" }] }),
   component: LibraryMaster,
 });
 
