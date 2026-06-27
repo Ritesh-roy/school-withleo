@@ -1,15 +1,16 @@
 import { useState } from "react";
 import { Link, useRouterState } from "@tanstack/react-router";
 import { ChevronDown, BookOpen, LogOut } from "lucide-react";
-import { NAV } from "./nav-config";
+import { filterNavForRole } from "./nav-config";
 import { useAuth } from "@/lib/auth";
 import { cn } from "@/lib/utils";
 
 export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
-  const { isAdmin, signOut } = useAuth();
+  const { primaryRole, signOut } = useAuth();
+  const nav = filterNavForRole(primaryRole);
   const [open, setOpen] = useState<Record<string, boolean>>({
-    "System Setting": false,
+    "System Setting": true,
     Library: true,
   });
 
@@ -25,7 +26,7 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
       </div>
 
       <nav className="flex-1 space-y-1 overflow-y-auto p-3">
-        {NAV.map((entry) => {
+        {nav.map((entry) => {
           if (entry.type === "link") {
             const { item } = entry;
             const Icon = item.icon!;
