@@ -372,7 +372,7 @@ function BookMaster() {
             />
           </Field>
           <Field label="Book Type">
-            <Dropdown masterKey="book_type" value={form.collection_name} onChange={(v) => set("collection_name", v)} placeholder="Book Type" />
+            <Dropdown options={masters["book_type"] ?? []} value={form.collection_name} onChange={(v) => set("collection_name", v)} placeholder="Book Type" />
           </Field>
           <Field label="ISBN No">
             <Input value={form.isbn} onChange={(e) => set("isbn", e.target.value)} />
@@ -393,13 +393,13 @@ function BookMaster() {
             <Input value={form.volume} onChange={(e) => set("volume", e.target.value)} />
           </Field>
           <Field label="Category">
-            <Dropdown masterKey="category" value={form.category} onChange={(v) => set("category", v)} placeholder="Category" />
+            <Dropdown options={masters["category"] ?? []} value={form.category} onChange={(v) => set("category", v)} placeholder="Category" />
           </Field>
           <Field label="Access Type">
-            <Dropdown masterKey="access_type" value={form.access_type} onChange={(v) => set("access_type", v)} placeholder="Access Type" />
+            <Dropdown options={masters["access_type"] ?? []} value={form.access_type} onChange={(v) => set("access_type", v)} placeholder="Access Type" />
           </Field>
           <Field label="Language">
-            <Dropdown masterKey="language" value={form.language} onChange={(v) => set("language", v)} placeholder="Language" />
+            <Dropdown options={masters["language"] ?? []} value={form.language} onChange={(v) => set("language", v)} placeholder="Language" />
           </Field>
           <Field label="Publisher">
             <Input value={form.publisher} onChange={(e) => set("publisher", e.target.value)} />
@@ -411,13 +411,13 @@ function BookMaster() {
             <Input value={form.place} onChange={(e) => set("place", e.target.value)} />
           </Field>
           <Field label="Subject">
-            <Dropdown masterKey="subject" value={form.subject} onChange={(v) => set("subject", v)} placeholder="Subject" />
+            <Dropdown options={masters["subject"] ?? []} value={form.subject} onChange={(v) => set("subject", v)} placeholder="Subject" />
           </Field>
           <Field label="Location">
-            <Dropdown masterKey="location" value={form.location} onChange={(v) => set("location", v)} placeholder="Location" />
+            <Dropdown options={masters["location"] ?? []} value={form.location} onChange={(v) => set("location", v)} placeholder="Location" />
           </Field>
           <Field label="Status">
-            <Dropdown masterKey="status" value={form.status} onChange={(v) => set("status", v)} placeholder="Status" />
+            <Dropdown options={masters["status"] ?? []} value={form.status} onChange={(v) => set("status", v)} placeholder="Status" />
           </Field>
           <Field label="No. of Pages">
             <Input type="number" value={form.no_of_pages} onChange={(e) => set("no_of_pages", e.target.value)} />
