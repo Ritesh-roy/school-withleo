@@ -9,38 +9,229 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as ResetPasswordRouteImport } from './routes/reset-password'
+import { Route as AuthRouteImport } from './routes/auth'
+import { Route as AppRouteImport } from './routes/_app'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AppUsersRouteImport } from './routes/_app.users'
+import { Route as AppSettingsRouteImport } from './routes/_app.settings'
+import { Route as AppReturnRouteImport } from './routes/_app.return'
+import { Route as AppReportsRouteImport } from './routes/_app.reports'
+import { Route as AppMembersRouteImport } from './routes/_app.members'
+import { Route as AppLibraryMasterRouteImport } from './routes/_app.library-master'
+import { Route as AppIssueRouteImport } from './routes/_app.issue'
+import { Route as AppDashboardRouteImport } from './routes/_app.dashboard'
+import { Route as AppBulkEntryRouteImport } from './routes/_app.bulk-entry'
+import { Route as AppBooksRouteImport } from './routes/_app.books'
+import { Route as AppActivityRouteImport } from './routes/_app.activity'
 
+const ResetPasswordRoute = ResetPasswordRouteImport.update({
+  id: '/reset-password',
+  path: '/reset-password',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthRoute = AuthRouteImport.update({
+  id: '/auth',
+  path: '/auth',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AppRoute = AppRouteImport.update({
+  id: '/_app',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AppUsersRoute = AppUsersRouteImport.update({
+  id: '/users',
+  path: '/users',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppSettingsRoute = AppSettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppReturnRoute = AppReturnRouteImport.update({
+  id: '/return',
+  path: '/return',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppReportsRoute = AppReportsRouteImport.update({
+  id: '/reports',
+  path: '/reports',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppMembersRoute = AppMembersRouteImport.update({
+  id: '/members',
+  path: '/members',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppLibraryMasterRoute = AppLibraryMasterRouteImport.update({
+  id: '/library-master',
+  path: '/library-master',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppIssueRoute = AppIssueRouteImport.update({
+  id: '/issue',
+  path: '/issue',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppDashboardRoute = AppDashboardRouteImport.update({
+  id: '/dashboard',
+  path: '/dashboard',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppBulkEntryRoute = AppBulkEntryRouteImport.update({
+  id: '/bulk-entry',
+  path: '/bulk-entry',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppBooksRoute = AppBooksRouteImport.update({
+  id: '/books',
+  path: '/books',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppActivityRoute = AppActivityRouteImport.update({
+  id: '/activity',
+  path: '/activity',
+  getParentRoute: () => AppRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/auth': typeof AuthRoute
+  '/reset-password': typeof ResetPasswordRoute
+  '/activity': typeof AppActivityRoute
+  '/books': typeof AppBooksRoute
+  '/bulk-entry': typeof AppBulkEntryRoute
+  '/dashboard': typeof AppDashboardRoute
+  '/issue': typeof AppIssueRoute
+  '/library-master': typeof AppLibraryMasterRoute
+  '/members': typeof AppMembersRoute
+  '/reports': typeof AppReportsRoute
+  '/return': typeof AppReturnRoute
+  '/settings': typeof AppSettingsRoute
+  '/users': typeof AppUsersRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/auth': typeof AuthRoute
+  '/reset-password': typeof ResetPasswordRoute
+  '/activity': typeof AppActivityRoute
+  '/books': typeof AppBooksRoute
+  '/bulk-entry': typeof AppBulkEntryRoute
+  '/dashboard': typeof AppDashboardRoute
+  '/issue': typeof AppIssueRoute
+  '/library-master': typeof AppLibraryMasterRoute
+  '/members': typeof AppMembersRoute
+  '/reports': typeof AppReportsRoute
+  '/return': typeof AppReturnRoute
+  '/settings': typeof AppSettingsRoute
+  '/users': typeof AppUsersRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/_app': typeof AppRouteWithChildren
+  '/auth': typeof AuthRoute
+  '/reset-password': typeof ResetPasswordRoute
+  '/_app/activity': typeof AppActivityRoute
+  '/_app/books': typeof AppBooksRoute
+  '/_app/bulk-entry': typeof AppBulkEntryRoute
+  '/_app/dashboard': typeof AppDashboardRoute
+  '/_app/issue': typeof AppIssueRoute
+  '/_app/library-master': typeof AppLibraryMasterRoute
+  '/_app/members': typeof AppMembersRoute
+  '/_app/reports': typeof AppReportsRoute
+  '/_app/return': typeof AppReturnRoute
+  '/_app/settings': typeof AppSettingsRoute
+  '/_app/users': typeof AppUsersRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths:
+    | '/'
+    | '/auth'
+    | '/reset-password'
+    | '/activity'
+    | '/books'
+    | '/bulk-entry'
+    | '/dashboard'
+    | '/issue'
+    | '/library-master'
+    | '/members'
+    | '/reports'
+    | '/return'
+    | '/settings'
+    | '/users'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to:
+    | '/'
+    | '/auth'
+    | '/reset-password'
+    | '/activity'
+    | '/books'
+    | '/bulk-entry'
+    | '/dashboard'
+    | '/issue'
+    | '/library-master'
+    | '/members'
+    | '/reports'
+    | '/return'
+    | '/settings'
+    | '/users'
+  id:
+    | '__root__'
+    | '/'
+    | '/_app'
+    | '/auth'
+    | '/reset-password'
+    | '/_app/activity'
+    | '/_app/books'
+    | '/_app/bulk-entry'
+    | '/_app/dashboard'
+    | '/_app/issue'
+    | '/_app/library-master'
+    | '/_app/members'
+    | '/_app/reports'
+    | '/_app/return'
+    | '/_app/settings'
+    | '/_app/users'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AppRoute: typeof AppRouteWithChildren
+  AuthRoute: typeof AuthRoute
+  ResetPasswordRoute: typeof ResetPasswordRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/reset-password': {
+      id: '/reset-password'
+      path: '/reset-password'
+      fullPath: '/reset-password'
+      preLoaderRoute: typeof ResetPasswordRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/auth': {
+      id: '/auth'
+      path: '/auth'
+      fullPath: '/auth'
+      preLoaderRoute: typeof AuthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_app': {
+      id: '/_app'
+      path: ''
+      fullPath: '/'
+      preLoaderRoute: typeof AppRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
@@ -48,22 +239,122 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_app/users': {
+      id: '/_app/users'
+      path: '/users'
+      fullPath: '/users'
+      preLoaderRoute: typeof AppUsersRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/settings': {
+      id: '/_app/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof AppSettingsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/return': {
+      id: '/_app/return'
+      path: '/return'
+      fullPath: '/return'
+      preLoaderRoute: typeof AppReturnRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/reports': {
+      id: '/_app/reports'
+      path: '/reports'
+      fullPath: '/reports'
+      preLoaderRoute: typeof AppReportsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/members': {
+      id: '/_app/members'
+      path: '/members'
+      fullPath: '/members'
+      preLoaderRoute: typeof AppMembersRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/library-master': {
+      id: '/_app/library-master'
+      path: '/library-master'
+      fullPath: '/library-master'
+      preLoaderRoute: typeof AppLibraryMasterRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/issue': {
+      id: '/_app/issue'
+      path: '/issue'
+      fullPath: '/issue'
+      preLoaderRoute: typeof AppIssueRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/dashboard': {
+      id: '/_app/dashboard'
+      path: '/dashboard'
+      fullPath: '/dashboard'
+      preLoaderRoute: typeof AppDashboardRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/bulk-entry': {
+      id: '/_app/bulk-entry'
+      path: '/bulk-entry'
+      fullPath: '/bulk-entry'
+      preLoaderRoute: typeof AppBulkEntryRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/books': {
+      id: '/_app/books'
+      path: '/books'
+      fullPath: '/books'
+      preLoaderRoute: typeof AppBooksRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/activity': {
+      id: '/_app/activity'
+      path: '/activity'
+      fullPath: '/activity'
+      preLoaderRoute: typeof AppActivityRouteImport
+      parentRoute: typeof AppRoute
+    }
   }
 }
 
+interface AppRouteChildren {
+  AppActivityRoute: typeof AppActivityRoute
+  AppBooksRoute: typeof AppBooksRoute
+  AppBulkEntryRoute: typeof AppBulkEntryRoute
+  AppDashboardRoute: typeof AppDashboardRoute
+  AppIssueRoute: typeof AppIssueRoute
+  AppLibraryMasterRoute: typeof AppLibraryMasterRoute
+  AppMembersRoute: typeof AppMembersRoute
+  AppReportsRoute: typeof AppReportsRoute
+  AppReturnRoute: typeof AppReturnRoute
+  AppSettingsRoute: typeof AppSettingsRoute
+  AppUsersRoute: typeof AppUsersRoute
+}
+
+const AppRouteChildren: AppRouteChildren = {
+  AppActivityRoute: AppActivityRoute,
+  AppBooksRoute: AppBooksRoute,
+  AppBulkEntryRoute: AppBulkEntryRoute,
+  AppDashboardRoute: AppDashboardRoute,
+  AppIssueRoute: AppIssueRoute,
+  AppLibraryMasterRoute: AppLibraryMasterRoute,
+  AppMembersRoute: AppMembersRoute,
+  AppReportsRoute: AppReportsRoute,
+  AppReturnRoute: AppReturnRoute,
+  AppSettingsRoute: AppSettingsRoute,
+  AppUsersRoute: AppUsersRoute,
+}
+
+const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AppRoute: AppRouteWithChildren,
+  AuthRoute: AuthRoute,
+  ResetPasswordRoute: ResetPasswordRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
