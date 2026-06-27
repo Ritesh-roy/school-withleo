@@ -99,6 +99,63 @@ const empty = {
   purchase_date: todayISO(),
 };
 
+// Defined OUTSIDE the component so React preserves identity across renders.
+// (Previously these were declared inside BookMaster, which caused every input
+// to unmount/remount on each keystroke — destroying focus mid-typing.)
+function Field({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <div className="space-y-1.5">
+      <Label className="text-xs">{label}</Label>
+      {children}
+    </div>
+  );
+}
+
+function Dropdown({
+  options,
+  value,
+  onChange,
+  placeholder,
+}: {
+  options: string[];
+  value: string;
+  onChange: (v: string) => void;
+  placeholder: string;
+}) {
+  return (
+    <Select value={value || undefined} onValueChange={onChange}>
+      <SelectTrigger>
+        <SelectValue placeholder={placeholder} />
+      </SelectTrigger>
+      <SelectContent>
+        {options.map((n) => (
+          <SelectItem key={n} value={n}>
+            {n}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  );
+}
+
+// Enter key moves focus to the next focusable form control (skips textarea).
+function handleFormKeyDown(e: KeyboardEvent<HTMLFormElement>) {
+  if (e.key !== "Enter") return;
+  const target = e.target as HTMLElement;
+  if (target.tagName === "TEXTAREA") return;
+  if (target.tagName === "BUTTON" && (target as HTMLButtonElement).type === "submit") return;
+  e.preventDefault();
+  const form = e.currentTarget;
+  const focusables = Array.from(
+    form.querySelectorAll<HTMLElement>(
+      'input:not([disabled]):not([type="hidden"]), select:not([disabled]), textarea:not([disabled]), button:not([disabled]), [role="combobox"]:not([disabled]), [tabindex]:not([tabindex="-1"])',
+    ),
+  ).filter((el) => el.offsetParent !== null);
+  const idx = focusables.indexOf(target);
+  const next = focusables[idx + 1];
+  if (next) next.focus();
+}
+
 function BookMaster() {
   const qc = useQueryClient();
   const { data: masters = {} } = useMasters();
