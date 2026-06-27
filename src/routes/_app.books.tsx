@@ -99,6 +99,63 @@ const empty = {
   purchase_date: todayISO(),
 };
 
+// Defined OUTSIDE the component so React preserves identity across renders.
+// (Previously these were declared inside BookMaster, which caused every input
+// to unmount/remount on each keystroke — destroying focus mid-typing.)
+function Field({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <div className="space-y-1.5">
+      <Label className="text-xs">{label}</Label>
+      {children}
+    </div>
+  );
+}
+
+function Dropdown({
+  options,
+  value,
+  onChange,
+  placeholder,
+}: {
+  options: string[];
+  value: string;
+  onChange: (v: string) => void;
+  placeholder: string;
+}) {
+  return (
+    <Select value={value || undefined} onValueChange={onChange}>
+      <SelectTrigger>
+        <SelectValue placeholder={placeholder} />
+      </SelectTrigger>
+      <SelectContent>
+        {options.map((n) => (
+          <SelectItem key={n} value={n}>
+            {n}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  );
+}
+
+// Enter key moves focus to the next focusable form control (skips textarea).
+function handleFormKeyDown(e: KeyboardEvent<HTMLFormElement>) {
+  if (e.key !== "Enter") return;
+  const target = e.target as HTMLElement;
+  if (target.tagName === "TEXTAREA") return;
+  if (target.tagName === "BUTTON" && (target as HTMLButtonElement).type === "submit") return;
+  e.preventDefault();
+  const form = e.currentTarget;
+  const focusables = Array.from(
+    form.querySelectorAll<HTMLElement>(
+      'input:not([disabled]):not([type="hidden"]), select:not([disabled]), textarea:not([disabled]), button:not([disabled]), [role="combobox"]:not([disabled]), [tabindex]:not([tabindex="-1"])',
+    ),
+  ).filter((el) => el.offsetParent !== null);
+  const idx = focusables.indexOf(target);
+  const next = focusables[idx + 1];
+  if (next) next.focus();
+}
+
 function BookMaster() {
   const qc = useQueryClient();
   const { data: masters = {} } = useMasters();
@@ -279,43 +336,7 @@ function BookMaster() {
     },
   ];
 
-  const Field = ({
-    label,
-    children,
-  }: {
-    label: string;
-    children: React.ReactNode;
-  }) => (
-    <div className="space-y-1.5">
-      <Label className="text-xs">{label}</Label>
-      {children}
-    </div>
-  );
-
-  const Dropdown = ({
-    masterKey,
-    value,
-    onChange,
-    placeholder,
-  }: {
-    masterKey: string;
-    value: string;
-    onChange: (v: string) => void;
-    placeholder: string;
-  }) => (
-    <Select value={value || undefined} onValueChange={onChange}>
-      <SelectTrigger>
-        <SelectValue placeholder={placeholder} />
-      </SelectTrigger>
-      <SelectContent>
-        {(masters[masterKey] ?? []).map((n) => (
-          <SelectItem key={n} value={n}>
-            {n}
-          </SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
-  );
+  // Field & Dropdown are defined at module scope (above) — DO NOT redeclare here.
 
   return (
     <div>
@@ -341,7 +362,14 @@ function BookMaster() {
         }
       />
 
-      <div className="rounded-xl border bg-card p-5 shadow-[var(--shadow-card)]">
+      <form
+        className="rounded-xl border bg-card p-5 shadow-[var(--shadow-card)]"
+        onSubmit={(e) => {
+          e.preventDefault();
+          save();
+        }}
+        onKeyDown={handleFormKeyDown}
+      >
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <Field label="Collection / Purchase Date">
             <Input
@@ -351,7 +379,7 @@ function BookMaster() {
             />
           </Field>
           <Field label="Book Type">
-            <Dropdown masterKey="book_type" value={form.collection_name} onChange={(v) => set("collection_name", v)} placeholder="Book Type" />
+            <Dropdown options={masters["book_type"] ?? []} value={form.collection_name} onChange={(v) => set("collection_name", v)} placeholder="Book Type" />
           </Field>
           <Field label="ISBN No">
             <Input value={form.isbn} onChange={(e) => set("isbn", e.target.value)} />
@@ -372,13 +400,13 @@ function BookMaster() {
             <Input value={form.volume} onChange={(e) => set("volume", e.target.value)} />
           </Field>
           <Field label="Category">
-            <Dropdown masterKey="category" value={form.category} onChange={(v) => set("category", v)} placeholder="Category" />
+            <Dropdown options={masters["category"] ?? []} value={form.category} onChange={(v) => set("category", v)} placeholder="Category" />
           </Field>
           <Field label="Access Type">
-            <Dropdown masterKey="access_type" value={form.access_type} onChange={(v) => set("access_type", v)} placeholder="Access Type" />
+            <Dropdown options={masters["access_type"] ?? []} value={form.access_type} onChange={(v) => set("access_type", v)} placeholder="Access Type" />
           </Field>
           <Field label="Language">
-            <Dropdown masterKey="language" value={form.language} onChange={(v) => set("language", v)} placeholder="Language" />
+            <Dropdown options={masters["language"] ?? []} value={form.language} onChange={(v) => set("language", v)} placeholder="Language" />
           </Field>
           <Field label="Publisher">
             <Input value={form.publisher} onChange={(e) => set("publisher", e.target.value)} />
@@ -390,13 +418,13 @@ function BookMaster() {
             <Input value={form.place} onChange={(e) => set("place", e.target.value)} />
           </Field>
           <Field label="Subject">
-            <Dropdown masterKey="subject" value={form.subject} onChange={(v) => set("subject", v)} placeholder="Subject" />
+            <Dropdown options={masters["subject"] ?? []} value={form.subject} onChange={(v) => set("subject", v)} placeholder="Subject" />
           </Field>
           <Field label="Location">
-            <Dropdown masterKey="location" value={form.location} onChange={(v) => set("location", v)} placeholder="Location" />
+            <Dropdown options={masters["location"] ?? []} value={form.location} onChange={(v) => set("location", v)} placeholder="Location" />
           </Field>
           <Field label="Status">
-            <Dropdown masterKey="status" value={form.status} onChange={(v) => set("status", v)} placeholder="Status" />
+            <Dropdown options={masters["status"] ?? []} value={form.status} onChange={(v) => set("status", v)} placeholder="Status" />
           </Field>
           <Field label="No. of Pages">
             <Input type="number" value={form.no_of_pages} onChange={(e) => set("no_of_pages", e.target.value)} />
@@ -420,15 +448,15 @@ function BookMaster() {
           </Field>
         </div>
         <div className="mt-4 flex justify-end gap-2">
-          <Button onClick={save}>
+          <Button type="submit">
             <Save className="mr-2 h-4 w-4" />
             {editId ? "Update" : "Save"}
           </Button>
-          <Button variant="outline" onClick={reset}>
+          <Button type="button" variant="outline" onClick={reset}>
             <RotateCcw className="mr-2 h-4 w-4" /> Reset
           </Button>
         </div>
-      </div>
+      </form>
 
       <div className="mt-6">
         <DataTable
