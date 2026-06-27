@@ -211,34 +211,44 @@ function AuthPage() {
             </TabsContent>
 
             <TabsContent value="signup">
-              <form onSubmit={handleSignup} className="space-y-4 pt-4">
+              <form onSubmit={handleSignup} className="space-y-4 pt-4" noValidate>
                 <div className="space-y-2">
-                  <Label htmlFor="name">Full Name</Label>
+                  <Label htmlFor="name">
+                    Full Name <span className="text-destructive">*</span>
+                  </Label>
                   <Input
                     id="name"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
+                    placeholder="Enter your full name"
+                    maxLength={120}
                     required
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="su-email">Email</Label>
+                  <Label htmlFor="su-email">
+                    Email <span className="text-destructive">*</span>
+                  </Label>
                   <Input
                     id="su-email"
                     type="email"
                     value={suEmail}
                     onChange={(e) => setSuEmail(e.target.value)}
+                    placeholder="Enter email address"
                     required
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="su-password">Password</Label>
+                  <Label htmlFor="su-password">
+                    Password <span className="text-destructive">*</span>
+                  </Label>
                   <Input
                     id="su-password"
                     type="password"
                     minLength={6}
                     value={suPassword}
                     onChange={(e) => setSuPassword(e.target.value)}
+                    placeholder="Enter password (min 6 characters)"
                     required
                   />
                 </div>

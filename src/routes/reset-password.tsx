@@ -18,6 +18,9 @@ function ResetPassword() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (busy) return;
+    if (password.length < 6)
+      return toast.error("Password must be at least 6 characters.");
     setBusy(true);
     const { error } = await supabase.auth.updateUser({ password });
     setBusy(false);
@@ -39,15 +42,18 @@ function ResetPassword() {
             <p className="text-sm text-muted-foreground">Set a new password</p>
           </div>
         </div>
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-4" noValidate>
           <div className="space-y-2">
-            <Label htmlFor="np">New Password</Label>
+            <Label htmlFor="np">
+              New Password <span className="text-destructive">*</span>
+            </Label>
             <Input
               id="np"
               type="password"
               minLength={6}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
+              placeholder="Enter new password (min 6 characters)"
               required
             />
           </div>
