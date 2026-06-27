@@ -336,43 +336,7 @@ function BookMaster() {
     },
   ];
 
-  const Field = ({
-    label,
-    children,
-  }: {
-    label: string;
-    children: React.ReactNode;
-  }) => (
-    <div className="space-y-1.5">
-      <Label className="text-xs">{label}</Label>
-      {children}
-    </div>
-  );
-
-  const Dropdown = ({
-    masterKey,
-    value,
-    onChange,
-    placeholder,
-  }: {
-    masterKey: string;
-    value: string;
-    onChange: (v: string) => void;
-    placeholder: string;
-  }) => (
-    <Select value={value || undefined} onValueChange={onChange}>
-      <SelectTrigger>
-        <SelectValue placeholder={placeholder} />
-      </SelectTrigger>
-      <SelectContent>
-        {(masters[masterKey] ?? []).map((n) => (
-          <SelectItem key={n} value={n}>
-            {n}
-          </SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
-  );
+  // Field & Dropdown are defined at module scope (above) — DO NOT redeclare here.
 
   return (
     <div>
