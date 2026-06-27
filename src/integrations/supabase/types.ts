@@ -14,16 +14,404 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      activity_logs: {
+        Row: {
+          action: string
+          actor_name: string | null
+          created_at: string
+          detail: string | null
+          id: string
+          user_id: string | null
+        }
+        Insert: {
+          action: string
+          actor_name?: string | null
+          created_at?: string
+          detail?: string | null
+          id?: string
+          user_id?: string | null
+        }
+        Update: {
+          action?: string
+          actor_name?: string | null
+          created_at?: string
+          detail?: string | null
+          id?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      book_issues: {
+        Row: {
+          book_id: string
+          created_at: string
+          created_by: string | null
+          due_date: string
+          fine_amount: number
+          fine_collected: number
+          id: string
+          issue_date: string
+          member_id: string
+          remarks: string | null
+          return_date: string | null
+          status: Database["public"]["Enums"]["issue_status"]
+          updated_at: string
+        }
+        Insert: {
+          book_id: string
+          created_at?: string
+          created_by?: string | null
+          due_date: string
+          fine_amount?: number
+          fine_collected?: number
+          id?: string
+          issue_date?: string
+          member_id: string
+          remarks?: string | null
+          return_date?: string | null
+          status?: Database["public"]["Enums"]["issue_status"]
+          updated_at?: string
+        }
+        Update: {
+          book_id?: string
+          created_at?: string
+          created_by?: string | null
+          due_date?: string
+          fine_amount?: number
+          fine_collected?: number
+          id?: string
+          issue_date?: string
+          member_id?: string
+          remarks?: string | null
+          return_date?: string | null
+          status?: Database["public"]["Enums"]["issue_status"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "book_issues_book_id_fkey"
+            columns: ["book_id"]
+            isOneToOne: false
+            referencedRelation: "books"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "book_issues_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "members"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      books: {
+        Row: {
+          access_type: string | null
+          author: string | null
+          available_copies: number
+          category: string | null
+          collection_name: string | null
+          collection_no: number
+          content: string | null
+          cover_image: string | null
+          created_at: string
+          created_by: string | null
+          damage_date: string | null
+          edition: string | null
+          editor: string | null
+          id: string
+          is_deleted: boolean
+          isbn: string | null
+          language: string | null
+          location: string | null
+          mrp: number | null
+          no_of_copies: number
+          no_of_pages: number | null
+          place: string | null
+          price: number | null
+          publisher: string | null
+          publishing_year: string | null
+          purchase_date: string | null
+          status: string | null
+          subject: string | null
+          title: string
+          updated_at: string
+          volume: string | null
+        }
+        Insert: {
+          access_type?: string | null
+          author?: string | null
+          available_copies?: number
+          category?: string | null
+          collection_name?: string | null
+          collection_no?: never
+          content?: string | null
+          cover_image?: string | null
+          created_at?: string
+          created_by?: string | null
+          damage_date?: string | null
+          edition?: string | null
+          editor?: string | null
+          id?: string
+          is_deleted?: boolean
+          isbn?: string | null
+          language?: string | null
+          location?: string | null
+          mrp?: number | null
+          no_of_copies?: number
+          no_of_pages?: number | null
+          place?: string | null
+          price?: number | null
+          publisher?: string | null
+          publishing_year?: string | null
+          purchase_date?: string | null
+          status?: string | null
+          subject?: string | null
+          title: string
+          updated_at?: string
+          volume?: string | null
+        }
+        Update: {
+          access_type?: string | null
+          author?: string | null
+          available_copies?: number
+          category?: string | null
+          collection_name?: string | null
+          collection_no?: never
+          content?: string | null
+          cover_image?: string | null
+          created_at?: string
+          created_by?: string | null
+          damage_date?: string | null
+          edition?: string | null
+          editor?: string | null
+          id?: string
+          is_deleted?: boolean
+          isbn?: string | null
+          language?: string | null
+          location?: string | null
+          mrp?: number | null
+          no_of_copies?: number
+          no_of_pages?: number | null
+          place?: string | null
+          price?: number | null
+          publisher?: string | null
+          publishing_year?: string | null
+          purchase_date?: string | null
+          status?: string | null
+          subject?: string | null
+          title?: string
+          updated_at?: string
+          volume?: string | null
+        }
+        Relationships: []
+      }
+      library_masters: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          master_type: Database["public"]["Enums"]["master_type"]
+          name: string
+          status: boolean
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          master_type: Database["public"]["Enums"]["master_type"]
+          name: string
+          status?: boolean
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          master_type?: Database["public"]["Enums"]["master_type"]
+          name?: string
+          status?: boolean
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      members: {
+        Row: {
+          address: string | null
+          city: string | null
+          created_at: string
+          email: string | null
+          expiry_date: string | null
+          gender: string | null
+          id: string
+          is_active: boolean
+          member_no: number
+          member_type: Database["public"]["Enums"]["member_type"]
+          membership_date: string | null
+          mobile_no: string | null
+          name: string
+          photo_url: string | null
+          pin_code: string | null
+          updated_at: string
+        }
+        Insert: {
+          address?: string | null
+          city?: string | null
+          created_at?: string
+          email?: string | null
+          expiry_date?: string | null
+          gender?: string | null
+          id?: string
+          is_active?: boolean
+          member_no?: never
+          member_type?: Database["public"]["Enums"]["member_type"]
+          membership_date?: string | null
+          mobile_no?: string | null
+          name: string
+          photo_url?: string | null
+          pin_code?: string | null
+          updated_at?: string
+        }
+        Update: {
+          address?: string | null
+          city?: string | null
+          created_at?: string
+          email?: string | null
+          expiry_date?: string | null
+          gender?: string | null
+          id?: string
+          is_active?: boolean
+          member_no?: never
+          member_type?: Database["public"]["Enums"]["member_type"]
+          membership_date?: string | null
+          mobile_no?: string | null
+          name?: string
+          photo_url?: string | null
+          pin_code?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          created_at: string
+          email: string | null
+          full_name: string | null
+          id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          email?: string | null
+          full_name?: string | null
+          id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          email?: string | null
+          full_name?: string | null
+          id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      settings: {
+        Row: {
+          address: string | null
+          damage_charge: number
+          default_issue_days: number
+          email: string | null
+          fine_per_day: number
+          id: string
+          library_rules: string | null
+          logo_url: string | null
+          lost_book_charge: number
+          phone: string | null
+          school_name: string
+          updated_at: string
+        }
+        Insert: {
+          address?: string | null
+          damage_charge?: number
+          default_issue_days?: number
+          email?: string | null
+          fine_per_day?: number
+          id?: string
+          library_rules?: string | null
+          logo_url?: string | null
+          lost_book_charge?: number
+          phone?: string | null
+          school_name?: string
+          updated_at?: string
+        }
+        Update: {
+          address?: string | null
+          damage_charge?: number
+          default_issue_days?: number
+          email?: string | null
+          fine_per_day?: number
+          id?: string
+          library_rules?: string | null
+          logo_url?: string | null
+          lost_book_charge?: number
+          phone?: string | null
+          school_name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      user_roles: {
+        Row: {
+          created_at: string
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "super_admin" | "admin" | "librarian" | "teacher" | "student"
+      issue_status: "issued" | "returned" | "overdue" | "lost"
+      master_type:
+        | "library"
+        | "book_type"
+        | "language"
+        | "category"
+        | "author"
+        | "publisher"
+        | "editor"
+        | "access_type"
+        | "subject"
+        | "location"
+        | "status"
+      member_type: "student" | "teacher" | "staff"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +538,23 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["super_admin", "admin", "librarian", "teacher", "student"],
+      issue_status: ["issued", "returned", "overdue", "lost"],
+      master_type: [
+        "library",
+        "book_type",
+        "language",
+        "category",
+        "author",
+        "publisher",
+        "editor",
+        "access_type",
+        "subject",
+        "location",
+        "status",
+      ],
+      member_type: ["student", "teacher", "staff"],
+    },
   },
 } as const
