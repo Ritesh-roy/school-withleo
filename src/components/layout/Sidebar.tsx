@@ -48,7 +48,7 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
             );
           }
           const { group } = entry;
-          const items = group.items.filter((i) => !i.adminOnly || isAdmin);
+          const items = group.items;
           if (items.length === 0) return null;
           const GroupIcon = group.icon;
           const isOpen = open[group.label];
