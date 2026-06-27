@@ -64,10 +64,19 @@ function AuthPage() {
     if (!loading && user) navigate({ to: "/dashboard" });
   }, [user, loading, navigate]);
 
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (busy) return;
+    if (!emailRegex.test(email.trim()))
+      return toast.error("Please enter a valid email address.");
+    if (!password) return toast.error("Password is required.");
     setBusy(true);
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    const { error } = await supabase.auth.signInWithPassword({
+      email: email.trim(),
+      password,
+    });
     setBusy(false);
     if (error) return toast.error(error.message);
     toast.success("Welcome back!");
@@ -76,13 +85,19 @@ function AuthPage() {
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (busy) return;
+    if (!name.trim()) return toast.error("Full Name is required.");
+    if (!emailRegex.test(suEmail.trim()))
+      return toast.error("Please enter a valid email address.");
+    if (suPassword.length < 6)
+      return toast.error("Password must be at least 6 characters.");
     setBusy(true);
     const { error } = await supabase.auth.signUp({
-      email: suEmail,
+      email: suEmail.trim(),
       password: suPassword,
       options: {
         emailRedirectTo: window.location.origin,
-        data: { full_name: name, role },
+        data: { full_name: name.trim(), role },
       },
     });
     setBusy(false);
@@ -92,12 +107,13 @@ function AuthPage() {
   };
 
   const handleForgot = async () => {
-    if (!email) return toast.error("Enter your email first");
-    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+    if (!emailRegex.test(email.trim()))
+      return toast.error("Please enter a valid email address first.");
+    const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
       redirectTo: `${window.location.origin}/reset-password`,
     });
     if (error) return toast.error(error.message);
-    toast.success("Password reset link sent to your email");
+    toast.success("Password reset link sent to your email.");
   };
 
   return (
@@ -142,25 +158,32 @@ function AuthPage() {
             </TabsList>
 
             <TabsContent value="login">
-              <form onSubmit={handleLogin} className="space-y-4 pt-4">
+              <form onSubmit={handleLogin} className="space-y-4 pt-4" noValidate>
                 <div className="space-y-2">
-                  <Label htmlFor="email">Email</Label>
+                  <Label htmlFor="email">
+                    Email <span className="text-destructive">*</span>
+                  </Label>
                   <Input
                     id="email"
                     type="email"
+                    autoComplete="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    placeholder="you@school.com"
+                    placeholder="Enter email address"
                     required
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="password">Password</Label>
+                  <Label htmlFor="password">
+                    Password <span className="text-destructive">*</span>
+                  </Label>
                   <Input
                     id="password"
                     type="password"
+                    autoComplete="current-password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
+                    placeholder="Enter password"
                     required
                   />
                 </div>
@@ -188,34 +211,44 @@ function AuthPage() {
             </TabsContent>
 
             <TabsContent value="signup">
-              <form onSubmit={handleSignup} className="space-y-4 pt-4">
+              <form onSubmit={handleSignup} className="space-y-4 pt-4" noValidate>
                 <div className="space-y-2">
-                  <Label htmlFor="name">Full Name</Label>
+                  <Label htmlFor="name">
+                    Full Name <span className="text-destructive">*</span>
+                  </Label>
                   <Input
                     id="name"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
+                    placeholder="Enter your full name"
+                    maxLength={120}
                     required
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="su-email">Email</Label>
+                  <Label htmlFor="su-email">
+                    Email <span className="text-destructive">*</span>
+                  </Label>
                   <Input
                     id="su-email"
                     type="email"
                     value={suEmail}
                     onChange={(e) => setSuEmail(e.target.value)}
+                    placeholder="Enter email address"
                     required
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="su-password">Password</Label>
+                  <Label htmlFor="su-password">
+                    Password <span className="text-destructive">*</span>
+                  </Label>
                   <Input
                     id="su-password"
                     type="password"
                     minLength={6}
                     value={suPassword}
                     onChange={(e) => setSuPassword(e.target.value)}
+                    placeholder="Enter password (min 6 characters)"
                     required
                   />
                 </div>

@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useRef, useState, type KeyboardEvent, type ReactNode } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   BookOpen,
@@ -9,14 +9,15 @@ import {
   Trash2,
   FileSpreadsheet,
   FileText,
+  Loader2,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useMasters } from "@/lib/use-masters";
 import { PageHeader } from "@/components/library/PageHeader";
 import { DataTable, type Column } from "@/components/library/DataTable";
+import { FormField } from "@/components/library/FormField";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
@@ -37,6 +38,13 @@ import {
 } from "@/components/ui/alert-dialog";
 import { currency, logActivity, todayISO } from "@/lib/helpers";
 import { exportToExcel, exportToPdf } from "@/lib/exports";
+import {
+  handleFormKeyDown,
+  restrict,
+  sanitize,
+  validators,
+  CURRENT_YEAR,
+} from "@/lib/form-utils";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_app/books")({
@@ -99,18 +107,7 @@ const empty = {
   purchase_date: todayISO(),
 };
 
-// Defined OUTSIDE the component so React preserves identity across renders.
-// (Previously these were declared inside BookMaster, which caused every input
-// to unmount/remount on each keystroke — destroying focus mid-typing.)
-function Field({ label, children }: { label: string; children: ReactNode }) {
-  return (
-    <div className="space-y-1.5">
-      <Label className="text-xs">{label}</Label>
-      {children}
-    </div>
-  );
-}
-
+// Module-scope Dropdown — preserves identity across renders (focus stays put).
 function Dropdown({
   options,
   value,
@@ -128,32 +125,20 @@ function Dropdown({
         <SelectValue placeholder={placeholder} />
       </SelectTrigger>
       <SelectContent>
-        {options.map((n) => (
-          <SelectItem key={n} value={n}>
-            {n}
-          </SelectItem>
-        ))}
+        {options.length === 0 ? (
+          <div className="px-2 py-1.5 text-xs text-muted-foreground">
+            No options. Add in Library Master.
+          </div>
+        ) : (
+          options.map((n) => (
+            <SelectItem key={n} value={n}>
+              {n}
+            </SelectItem>
+          ))
+        )}
       </SelectContent>
     </Select>
   );
-}
-
-// Enter key moves focus to the next focusable form control (skips textarea).
-function handleFormKeyDown(e: KeyboardEvent<HTMLFormElement>) {
-  if (e.key !== "Enter") return;
-  const target = e.target as HTMLElement;
-  if (target.tagName === "TEXTAREA") return;
-  if (target.tagName === "BUTTON" && (target as HTMLButtonElement).type === "submit") return;
-  e.preventDefault();
-  const form = e.currentTarget;
-  const focusables = Array.from(
-    form.querySelectorAll<HTMLElement>(
-      'input:not([disabled]):not([type="hidden"]), select:not([disabled]), textarea:not([disabled]), button:not([disabled]), [role="combobox"]:not([disabled]), [tabindex]:not([tabindex="-1"])',
-    ),
-  ).filter((el) => el.offsetParent !== null);
-  const idx = focusables.indexOf(target);
-  const next = focusables[idx + 1];
-  if (next) next.focus();
 }
 
 function BookMaster() {
@@ -162,9 +147,47 @@ function BookMaster() {
   const [form, setForm] = useState({ ...empty });
   const [editId, setEditId] = useState<string | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [touched, setTouched] = useState<Record<string, boolean>>({});
 
   const set = (k: keyof typeof empty, v: string) =>
     setForm((f) => ({ ...f, [k]: v }));
+  const touch = (k: string) => setTouched((t) => ({ ...t, [k]: true }));
+
+  const errors = useMemo(() => {
+    const e: Record<string, string | null> = {};
+    e.purchase_date = validators.required(form.purchase_date, "Collection Date");
+    e.collection_name = validators.required(form.collection_name, "Book Type");
+    e.isbn = validators.required(form.isbn, "ISBN") || validators.isbn(form.isbn);
+    e.title = validators.required(form.title, "Book Title");
+    e.author = validators.required(form.author, "Author");
+    e.category = validators.required(form.category, "Category");
+    e.access_type = validators.required(form.access_type, "Access Type");
+    e.language = validators.required(form.language, "Language");
+    e.publisher = validators.required(form.publisher, "Publisher");
+    e.publishing_year =
+      validators.required(form.publishing_year, "Publishing Year") ||
+      validators.year(form.publishing_year);
+    e.status = validators.required(form.status, "Status");
+    e.no_of_copies =
+      validators.required(form.no_of_copies, "Copies") ||
+      validators.greaterThanZero(form.no_of_copies, "Copies");
+    e.price =
+      validators.required(form.price, "Price") ||
+      validators.positiveNumber(form.price, "Price");
+    e.mrp =
+      validators.required(form.mrp, "MRP") ||
+      validators.positiveNumber(form.mrp, "MRP");
+    e.cover_image =
+      validators.required(form.cover_image, "Cover Image") ||
+      validators.url(form.cover_image);
+    e.content = validators.required(form.content, "Description");
+    e.no_of_pages = validators.positiveInt(form.no_of_pages, "Pages");
+    return e;
+  }, [form]);
+
+  const isValid = Object.values(errors).every((v) => !v);
+  const err = (k: string) => (touched[k] ? errors[k] : null);
 
   const { data: books = [] } = useQuery({
     queryKey: ["books"],
@@ -182,25 +205,33 @@ function BookMaster() {
   const reset = () => {
     setForm({ ...empty });
     setEditId(null);
+    setTouched({});
   };
 
   const save = async () => {
-    if (!form.title.trim()) return toast.error("Book title is required");
+    const allTouched = Object.keys(errors).reduce<Record<string, boolean>>(
+      (acc, k) => ({ ...acc, [k]: true }),
+      {},
+    );
+    setTouched(allTouched);
+    if (!isValid) return toast.error("Please fix the highlighted fields.");
+    if (saving) return;
+    setSaving(true);
     const copies = parseInt(form.no_of_copies) || 1;
     const payload = {
       title: form.title.trim(),
       collection_name: form.collection_name || null,
-      isbn: form.isbn || null,
-      author: form.author || null,
-      editor: form.editor || null,
-      edition: form.edition || null,
-      volume: form.volume || null,
+      isbn: form.isbn.trim() || null,
+      author: form.author.trim() || null,
+      editor: form.editor.trim() || null,
+      edition: form.edition.trim() || null,
+      volume: form.volume.trim() || null,
       category: form.category || null,
       access_type: form.access_type || null,
       language: form.language || null,
-      publisher: form.publisher || null,
+      publisher: form.publisher.trim() || null,
       publishing_year: form.publishing_year || null,
-      place: form.place || null,
+      place: form.place.trim() || null,
       subject: form.subject || null,
       location: form.location || null,
       status: form.status || null,
@@ -208,25 +239,31 @@ function BookMaster() {
       no_of_copies: copies,
       price: parseFloat(form.price) || 0,
       mrp: parseFloat(form.mrp) || 0,
-      content: form.content || null,
-      cover_image: form.cover_image || null,
+      content: form.content.trim() || null,
+      cover_image: form.cover_image.trim() || null,
       purchase_date: form.purchase_date || null,
     };
-    if (editId) {
-      const { error } = await supabase.from("books").update(payload).eq("id", editId);
-      if (error) return toast.error(error.message);
-      toast.success("Book updated");
-      logActivity("Update book", form.title);
-    } else {
-      const { error } = await supabase
-        .from("books")
-        .insert({ ...payload, available_copies: copies });
-      if (error) return toast.error(error.message);
-      toast.success("Book added");
-      logActivity("Add book", form.title);
+    try {
+      if (editId) {
+        const { error } = await supabase.from("books").update(payload).eq("id", editId);
+        if (error) throw error;
+        toast.success("Book updated successfully");
+        logActivity("Update book", form.title);
+      } else {
+        const { error } = await supabase
+          .from("books")
+          .insert({ ...payload, available_copies: copies });
+        if (error) throw error;
+        toast.success("Book added successfully");
+        logActivity("Add book", form.title);
+      }
+      reset();
+      qc.invalidateQueries({ queryKey: ["books"] });
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed to save book");
+    } finally {
+      setSaving(false);
     }
-    reset();
-    qc.invalidateQueries({ queryKey: ["books"] });
   };
 
   const edit = (b: BookRow) => {
@@ -256,6 +293,7 @@ function BookMaster() {
       cover_image: b.cover_image ?? "",
       purchase_date: b.purchase_date ?? todayISO(),
     });
+    setTouched({});
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
@@ -322,11 +360,16 @@ function BookMaster() {
       className: "text-right",
       cell: (b) => (
         <div className="text-right">
-          <button onClick={() => edit(b)} className="mr-2 text-primary hover:opacity-70">
+          <button
+            onClick={() => edit(b)}
+            aria-label={`Edit ${b.title}`}
+            className="mr-2 text-primary hover:opacity-70"
+          >
             <Pencil className="h-4 w-4" />
           </button>
           <button
             onClick={() => setDeleteId(b.id)}
+            aria-label={`Delete ${b.title}`}
             className="text-destructive hover:opacity-70"
           >
             <Trash2 className="h-4 w-4" />
@@ -336,7 +379,17 @@ function BookMaster() {
     },
   ];
 
-  // Field & Dropdown are defined at module scope (above) — DO NOT redeclare here.
+  const wrap = (
+    label: string,
+    key: string,
+    required: boolean,
+    child: ReactNode,
+    hint?: string,
+  ) => (
+    <FormField label={label} required={required} error={err(key)} hint={hint}>
+      {child}
+    </FormField>
+  );
 
   return (
     <div>
@@ -364,6 +417,7 @@ function BookMaster() {
 
       <form
         className="rounded-xl border bg-card p-5 shadow-[var(--shadow-card)]"
+        noValidate
         onSubmit={(e) => {
           e.preventDefault();
           save();
@@ -371,88 +425,306 @@ function BookMaster() {
         onKeyDown={handleFormKeyDown}
       >
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <Field label="Collection / Purchase Date">
+          {wrap(
+            "Collection / Purchase Date",
+            "purchase_date",
+            true,
             <Input
               type="date"
               value={form.purchase_date}
               onChange={(e) => set("purchase_date", e.target.value)}
-            />
-          </Field>
-          <Field label="Book Type">
-            <Dropdown options={masters["book_type"] ?? []} value={form.collection_name} onChange={(v) => set("collection_name", v)} placeholder="Book Type" />
-          </Field>
-          <Field label="ISBN No">
-            <Input value={form.isbn} onChange={(e) => set("isbn", e.target.value)} />
-          </Field>
-          <Field label="Title *">
-            <Input value={form.title} onChange={(e) => set("title", e.target.value)} />
-          </Field>
-          <Field label="Author">
-            <Input value={form.author} onChange={(e) => set("author", e.target.value)} />
-          </Field>
-          <Field label="Editor">
-            <Input value={form.editor} onChange={(e) => set("editor", e.target.value)} />
-          </Field>
-          <Field label="Edition">
-            <Input value={form.edition} onChange={(e) => set("edition", e.target.value)} />
-          </Field>
-          <Field label="Volume">
-            <Input value={form.volume} onChange={(e) => set("volume", e.target.value)} />
-          </Field>
-          <Field label="Category">
-            <Dropdown options={masters["category"] ?? []} value={form.category} onChange={(v) => set("category", v)} placeholder="Category" />
-          </Field>
-          <Field label="Access Type">
-            <Dropdown options={masters["access_type"] ?? []} value={form.access_type} onChange={(v) => set("access_type", v)} placeholder="Access Type" />
-          </Field>
-          <Field label="Language">
-            <Dropdown options={masters["language"] ?? []} value={form.language} onChange={(v) => set("language", v)} placeholder="Language" />
-          </Field>
-          <Field label="Publisher">
-            <Input value={form.publisher} onChange={(e) => set("publisher", e.target.value)} />
-          </Field>
-          <Field label="Publishing Year">
-            <Input value={form.publishing_year} onChange={(e) => set("publishing_year", e.target.value)} />
-          </Field>
-          <Field label="Place">
-            <Input value={form.place} onChange={(e) => set("place", e.target.value)} />
-          </Field>
-          <Field label="Subject">
-            <Dropdown options={masters["subject"] ?? []} value={form.subject} onChange={(v) => set("subject", v)} placeholder="Subject" />
-          </Field>
-          <Field label="Location">
-            <Dropdown options={masters["location"] ?? []} value={form.location} onChange={(v) => set("location", v)} placeholder="Location" />
-          </Field>
-          <Field label="Status">
-            <Dropdown options={masters["status"] ?? []} value={form.status} onChange={(v) => set("status", v)} placeholder="Status" />
-          </Field>
-          <Field label="No. of Pages">
-            <Input type="number" value={form.no_of_pages} onChange={(e) => set("no_of_pages", e.target.value)} />
-          </Field>
-          <Field label="No. of Copies *">
-            <Input type="number" value={form.no_of_copies} onChange={(e) => set("no_of_copies", e.target.value)} />
-          </Field>
-          <Field label="Price">
-            <Input type="number" value={form.price} onChange={(e) => set("price", e.target.value)} />
-          </Field>
-          <Field label="MRP">
-            <Input type="number" value={form.mrp} onChange={(e) => set("mrp", e.target.value)} />
-          </Field>
-          <Field label="Cover Image URL">
-            <Input value={form.cover_image} onChange={(e) => set("cover_image", e.target.value)} />
-          </Field>
+              onBlur={() => touch("purchase_date")}
+            />,
+          )}
+          {wrap(
+            "Book Type",
+            "collection_name",
+            true,
+            <Dropdown
+              options={masters["book_type"] ?? []}
+              value={form.collection_name}
+              onChange={(v) => {
+                set("collection_name", v);
+                touch("collection_name");
+              }}
+              placeholder="Select book type"
+            />,
+          )}
+          {wrap(
+            "ISBN No",
+            "isbn",
+            true,
+            <Input
+              placeholder="Enter ISBN number"
+              inputMode="numeric"
+              value={form.isbn}
+              onKeyDown={restrict.isbn}
+              onChange={(e) => set("isbn", sanitize.isbn(e.target.value).slice(0, 17))}
+              onBlur={() => touch("isbn")}
+            />,
+            "10 or 13 digits (hyphens allowed).",
+          )}
+          {wrap(
+            "Title",
+            "title",
+            true,
+            <Input
+              placeholder="Enter book title"
+              value={form.title}
+              onChange={(e) => set("title", e.target.value)}
+              onBlur={() => touch("title")}
+              maxLength={200}
+            />,
+          )}
+          {wrap(
+            "Author",
+            "author",
+            true,
+            <Input
+              placeholder="Enter author name"
+              value={form.author}
+              onChange={(e) => set("author", e.target.value)}
+              onBlur={() => touch("author")}
+              maxLength={150}
+            />,
+          )}
+          {wrap(
+            "Editor",
+            "editor",
+            false,
+            <Input
+              placeholder="Enter editor name"
+              value={form.editor}
+              onChange={(e) => set("editor", e.target.value)}
+              maxLength={150}
+            />,
+          )}
+          {wrap(
+            "Edition",
+            "edition",
+            false,
+            <Input
+              placeholder="Enter edition (e.g. 2nd)"
+              value={form.edition}
+              onChange={(e) => set("edition", e.target.value)}
+              maxLength={40}
+            />,
+          )}
+          {wrap(
+            "Volume",
+            "volume",
+            false,
+            <Input
+              placeholder="Enter volume"
+              value={form.volume}
+              onChange={(e) => set("volume", e.target.value)}
+              maxLength={40}
+            />,
+          )}
+          {wrap(
+            "Category",
+            "category",
+            true,
+            <Dropdown
+              options={masters["category"] ?? []}
+              value={form.category}
+              onChange={(v) => {
+                set("category", v);
+                touch("category");
+              }}
+              placeholder="Select category"
+            />,
+          )}
+          {wrap(
+            "Access Type",
+            "access_type",
+            true,
+            <Dropdown
+              options={masters["access_type"] ?? []}
+              value={form.access_type}
+              onChange={(v) => {
+                set("access_type", v);
+                touch("access_type");
+              }}
+              placeholder="Select access type"
+            />,
+          )}
+          {wrap(
+            "Language",
+            "language",
+            true,
+            <Dropdown
+              options={masters["language"] ?? []}
+              value={form.language}
+              onChange={(v) => {
+                set("language", v);
+                touch("language");
+              }}
+              placeholder="Select language"
+            />,
+          )}
+          {wrap(
+            "Publisher",
+            "publisher",
+            true,
+            <Input
+              placeholder="Enter publisher name"
+              value={form.publisher}
+              onChange={(e) => set("publisher", e.target.value)}
+              onBlur={() => touch("publisher")}
+              maxLength={150}
+            />,
+          )}
+          {wrap(
+            "Publishing Year",
+            "publishing_year",
+            true,
+            <Input
+              placeholder="Enter publishing year (YYYY)"
+              inputMode="numeric"
+              value={form.publishing_year}
+              onKeyDown={restrict.digits}
+              onChange={(e) => set("publishing_year", sanitize.digits(e.target.value, 4))}
+              onBlur={() => touch("publishing_year")}
+            />,
+            `Between 1900 and ${CURRENT_YEAR}.`,
+          )}
+          {wrap(
+            "Place",
+            "place",
+            false,
+            <Input
+              placeholder="Enter place of publication"
+              value={form.place}
+              onChange={(e) => set("place", e.target.value)}
+              maxLength={100}
+            />,
+          )}
+          {wrap(
+            "Subject",
+            "subject",
+            false,
+            <Dropdown
+              options={masters["subject"] ?? []}
+              value={form.subject}
+              onChange={(v) => set("subject", v)}
+              placeholder="Select subject"
+            />,
+          )}
+          {wrap(
+            "Location",
+            "location",
+            false,
+            <Dropdown
+              options={masters["location"] ?? []}
+              value={form.location}
+              onChange={(v) => set("location", v)}
+              placeholder="Select location"
+            />,
+          )}
+          {wrap(
+            "Status",
+            "status",
+            true,
+            <Dropdown
+              options={masters["status"] ?? []}
+              value={form.status}
+              onChange={(v) => {
+                set("status", v);
+                touch("status");
+              }}
+              placeholder="Select status"
+            />,
+          )}
+          {wrap(
+            "No. of Pages",
+            "no_of_pages",
+            false,
+            <Input
+              placeholder="Enter number of pages"
+              inputMode="numeric"
+              value={form.no_of_pages}
+              onKeyDown={restrict.digits}
+              onChange={(e) => set("no_of_pages", sanitize.digits(e.target.value, 6))}
+              onBlur={() => touch("no_of_pages")}
+            />,
+          )}
+          {wrap(
+            "No. of Copies",
+            "no_of_copies",
+            true,
+            <Input
+              placeholder="Enter number of copies"
+              inputMode="numeric"
+              value={form.no_of_copies}
+              onKeyDown={restrict.digits}
+              onChange={(e) => set("no_of_copies", sanitize.digits(e.target.value, 5))}
+              onBlur={() => touch("no_of_copies")}
+            />,
+          )}
+          {wrap(
+            "Price",
+            "price",
+            true,
+            <Input
+              placeholder="Enter price"
+              inputMode="decimal"
+              value={form.price}
+              onKeyDown={restrict.decimal}
+              onChange={(e) => set("price", sanitize.decimal(e.target.value))}
+              onBlur={() => touch("price")}
+            />,
+          )}
+          {wrap(
+            "MRP",
+            "mrp",
+            true,
+            <Input
+              placeholder="Enter MRP"
+              inputMode="decimal"
+              value={form.mrp}
+              onKeyDown={restrict.decimal}
+              onChange={(e) => set("mrp", sanitize.decimal(e.target.value))}
+              onBlur={() => touch("mrp")}
+            />,
+          )}
+          {wrap(
+            "Cover Image URL",
+            "cover_image",
+            true,
+            <Input
+              placeholder="https://…"
+              value={form.cover_image}
+              onChange={(e) => set("cover_image", e.target.value)}
+              onBlur={() => touch("cover_image")}
+            />,
+          )}
         </div>
         <div className="mt-4">
-          <Field label="Content / Description">
-            <Textarea value={form.content} onChange={(e) => set("content", e.target.value)} rows={2} />
-          </Field>
+          {wrap(
+            "Content / Description",
+            "content",
+            true,
+            <Textarea
+              placeholder="Enter description…"
+              value={form.content}
+              onChange={(e) => set("content", e.target.value)}
+              onBlur={() => touch("content")}
+              rows={2}
+              maxLength={2000}
+            />,
+          )}
         </div>
         <div className="mt-4 flex justify-end gap-2">
-          <Button type="submit">
-            <Save className="mr-2 h-4 w-4" />
+          <Button type="submit" disabled={saving || !isValid}>
+            {saving ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <Save className="mr-2 h-4 w-4" />
+            )}
             {editId ? "Update" : "Save"}
           </Button>
-          <Button type="button" variant="outline" onClick={reset}>
+          <Button type="button" variant="outline" onClick={reset} disabled={saving}>
             <RotateCcw className="mr-2 h-4 w-4" /> Reset
           </Button>
         </div>

@@ -1,9 +1,10 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Pencil, Trash2, BookMarked, Save, RotateCcw } from "lucide-react";
+import { Pencil, Trash2, BookMarked, Save, RotateCcw, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { PageHeader } from "@/components/library/PageHeader";
+import { FormField } from "@/components/library/FormField";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -27,6 +28,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { cn } from "@/lib/utils";
 import { logActivity } from "@/lib/helpers";
+import { handleFormKeyDown, validators } from "@/lib/form-utils";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_app/library-master")({
@@ -63,8 +65,15 @@ function LibraryMaster() {
   const [status, setStatus] = useState(true);
   const [editId, setEditId] = useState<string | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [touched, setTouched] = useState(false);
+  const [saving, setSaving] = useState(false);
 
   const label = TABS.find((t) => t.key === active)!.label;
+  const nameError = validators.required(name, `${label} Name`);
+
+  useEffect(() => {
+    setTouched(false);
+  }, [active]);
 
   const { data: rows = [] } = useQuery({
     queryKey: ["masters", active],
@@ -83,30 +92,46 @@ function LibraryMaster() {
     setName("");
     setStatus(true);
     setEditId(null);
+    setTouched(false);
   };
 
   const save = async () => {
-    if (!name.trim()) return toast.error("Please enter a name");
-    if (editId) {
-      const { error } = await supabase
-        .from("library_masters")
-        .update({ name: name.trim(), status })
-        .eq("id", editId);
-      if (error) return toast.error(error.message);
-      toast.success(`${label} updated`);
-      logActivity("Update master", `${label}: ${name}`);
-    } else {
-      const { error } = await supabase.from("library_masters").insert({
-        master_type: active,
-        name: name.trim(),
-        status,
-      });
-      if (error) return toast.error(error.message);
-      toast.success(`${label} added`);
-      logActivity("Add master", `${label}: ${name}`);
+    setTouched(true);
+    if (nameError) return toast.error(nameError);
+    if (saving) return;
+    const trimmed = name.trim();
+    const dup = rows.find(
+      (r) => r.name.toLowerCase() === trimmed.toLowerCase() && r.id !== editId,
+    );
+    if (dup) return toast.error(`${label} "${trimmed}" already exists.`);
+    setSaving(true);
+    try {
+      if (editId) {
+        const { error } = await supabase
+          .from("library_masters")
+          .update({ name: trimmed, status })
+          .eq("id", editId);
+        if (error) throw error;
+        toast.success(`${label} updated successfully`);
+        logActivity("Update master", `${label}: ${trimmed}`);
+      } else {
+        const { error } = await supabase.from("library_masters").insert({
+          master_type: active,
+          name: trimmed,
+          status,
+        });
+        if (error) throw error;
+        toast.success(`${label} added successfully`);
+        logActivity("Add master", `${label}: ${trimmed}`);
+      }
+      reset();
+      qc.invalidateQueries({ queryKey: ["masters", active] });
+      qc.invalidateQueries({ queryKey: ["masters-all"] });
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed to save");
+    } finally {
+      setSaving(false);
     }
-    reset();
-    qc.invalidateQueries({ queryKey: ["masters", active] });
   };
 
   const confirmDelete = async () => {
@@ -151,32 +176,51 @@ function LibraryMaster() {
 
       <div className="rounded-xl border bg-card p-5 shadow-[var(--shadow-card)]">
         <h3 className="mb-4 font-semibold">{label} Master</h3>
-        <div className="flex flex-wrap items-center gap-4">
-          <Input
-            placeholder={`${label} Name`}
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            className="max-w-md"
-            onKeyDown={(e) => e.key === "Enter" && save()}
-          />
-          <label className="flex items-center gap-2 text-sm">
+        <form
+          noValidate
+          onSubmit={(e) => {
+            e.preventDefault();
+            save();
+          }}
+          onKeyDown={handleFormKeyDown}
+          className="flex flex-wrap items-start gap-4"
+        >
+          <FormField
+            label={`${label} Name`}
+            required
+            error={touched ? nameError : null}
+            className="min-w-[260px] flex-1"
+          >
+            <Input
+              placeholder={`Enter ${label.toLowerCase()} name`}
+              value={name}
+              maxLength={80}
+              onChange={(e) => setName(e.target.value)}
+              onBlur={() => setTouched(true)}
+            />
+          </FormField>
+          <label className="mt-7 flex items-center gap-2 text-sm">
             <Checkbox
               checked={status}
               onCheckedChange={(v) => setStatus(Boolean(v))}
             />
             Active
           </label>
-          <div className="ml-auto flex gap-2">
-            <Button onClick={save}>
-              <Save className="mr-2 h-4 w-4" />
+          <div className="ml-auto mt-7 flex gap-2">
+            <Button type="submit" disabled={saving || !!nameError}>
+              {saving ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Save className="mr-2 h-4 w-4" />
+              )}
               {editId ? "Update" : "Save"}
             </Button>
-            <Button variant="outline" onClick={reset}>
+            <Button type="button" variant="outline" onClick={reset} disabled={saving}>
               <RotateCcw className="mr-2 h-4 w-4" />
               Reset
             </Button>
           </div>
-        </div>
+        </form>
 
         <div className="mt-5 overflow-x-auto rounded-lg border">
           <Table>
@@ -216,13 +260,16 @@ function LibraryMaster() {
                           setEditId(r.id);
                           setName(r.name);
                           setStatus(r.status);
+                          setTouched(false);
                         }}
+                        aria-label="Edit"
                         className="mr-2 text-primary hover:opacity-70"
                       >
                         <Pencil className="h-4 w-4" />
                       </button>
                       <button
                         onClick={() => setDeleteId(r.id)}
+                        aria-label="Delete"
                         className="text-destructive hover:opacity-70"
                       >
                         <Trash2 className="h-4 w-4" />
