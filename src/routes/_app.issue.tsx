@@ -1,12 +1,12 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowUpRight, Plus, Trash2, BookCheck } from "lucide-react";
+import { ArrowUpRight, Plus, Trash2, BookCheck, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { PageHeader } from "@/components/library/PageHeader";
+import { FormField } from "@/components/library/FormField";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -23,6 +23,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { addDays, fmtDate, logActivity, todayISO } from "@/lib/helpers";
+import { handleFormKeyDown, validators } from "@/lib/form-utils";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_app/issue")({
@@ -45,6 +46,8 @@ function IssueBook() {
   const [bookId, setBookId] = useState("");
   const [dueDate, setDueDate] = useState("");
   const [staged, setStaged] = useState<StagedBook[]>([]);
+  const [touched, setTouched] = useState<Record<string, boolean>>({});
+  const [issuing, setIssuing] = useState(false);
 
   const { data: settings } = useQuery({
     queryKey: ["settings"],
@@ -83,14 +86,20 @@ function IssueBook() {
     setDueDate(addDays(issueDate, days));
   }, [settings, issueDate]);
 
+  const memberError = validators.required(memberId, "Member");
+  const issueDateError = validators.required(issueDate, "Issue Date");
+
   const addBook = () => {
-    if (!bookId) return toast.error("Select a book");
+    setTouched((t) => ({ ...t, bookId: true, dueDate: true }));
+    if (!bookId) return toast.error("Please select a book.");
+    if (!dueDate) return toast.error("Please select a due date.");
+    if (dueDate < issueDate) return toast.error("Due date cannot be before issue date.");
     if (staged.some((s) => s.book_id === bookId))
-      return toast.error("Book already added");
+      return toast.error("Book already added.");
     const b = books.find((x) => x.id === bookId);
     if (!b) return;
     if (b.access_type === "Reference Only")
-      return toast.error("Reference-only books cannot be issued");
+      return toast.error("Reference-only books cannot be issued.");
     setStaged((s) => [
       ...s,
       {
@@ -105,34 +114,44 @@ function IssueBook() {
   };
 
   const issueAll = async () => {
-    if (!memberId) return toast.error("Select a member");
-    if (staged.length === 0) return toast.error("Add at least one book");
-    const rows = staged.map((s) => ({
-      member_id: memberId,
-      book_id: s.book_id,
-      issue_date: issueDate,
-      due_date: s.due_date,
-      status: "issued" as const,
-    }));
-    const { error } = await supabase.from("book_issues").insert(rows);
-    if (error) return toast.error(error.message);
-    // decrement available copies
-    for (const s of staged) {
-      const b = books.find((x) => x.id === s.book_id);
-      if (b) {
-        await supabase
-          .from("books")
-          .update({ available_copies: Math.max(0, b.available_copies - 1) })
-          .eq("id", s.book_id);
+    setTouched({ memberId: true, issueDate: true });
+    if (memberError) return toast.error(memberError);
+    if (issueDateError) return toast.error(issueDateError);
+    if (staged.length === 0) return toast.error("Add at least one book.");
+    if (issuing) return;
+    setIssuing(true);
+    try {
+      const rows = staged.map((s) => ({
+        member_id: memberId,
+        book_id: s.book_id,
+        issue_date: issueDate,
+        due_date: s.due_date,
+        status: "issued" as const,
+      }));
+      const { error } = await supabase.from("book_issues").insert(rows);
+      if (error) throw error;
+      for (const s of staged) {
+        const b = books.find((x) => x.id === s.book_id);
+        if (b) {
+          await supabase
+            .from("books")
+            .update({ available_copies: Math.max(0, b.available_copies - 1) })
+            .eq("id", s.book_id);
+        }
       }
+      const member = members.find((m) => m.id === memberId);
+      logActivity("Issue books", `${staged.length} book(s) to ${member?.name}`);
+      toast.success(`${staged.length} book(s) issued successfully`);
+      setStaged([]);
+      setMemberId("");
+      setTouched({});
+      qc.invalidateQueries({ queryKey: ["books-available"] });
+      qc.invalidateQueries({ queryKey: ["dashboard"] });
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed to issue books");
+    } finally {
+      setIssuing(false);
     }
-    const member = members.find((m) => m.id === memberId);
-    logActivity("Issue books", `${staged.length} book(s) to ${member?.name}`);
-    toast.success(`${staged.length} book(s) issued`);
-    setStaged([]);
-    setMemberId("");
-    qc.invalidateQueries({ queryKey: ["books-available"] });
-    qc.invalidateQueries({ queryKey: ["dashboard"] });
   };
 
   return (
@@ -143,53 +162,77 @@ function IssueBook() {
         icon={<ArrowUpRight className="h-6 w-6 text-primary" />}
       />
 
-      <div className="rounded-xl border bg-card p-5 shadow-[var(--shadow-card)]">
+      <div className="rounded-xl border bg-card p-5 shadow-[var(--shadow-card)]" onKeyDown={handleFormKeyDown as never}>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <div className="space-y-1.5">
-            <Label className="text-xs">Issue Date</Label>
-            <Input type="date" value={issueDate} onChange={(e) => setIssueDate(e.target.value)} />
-          </div>
-          <div className="space-y-1.5">
-            <Label className="text-xs">Member *</Label>
-            <Select value={memberId || undefined} onValueChange={setMemberId}>
+          <FormField label="Issue Date" required error={touched.issueDate ? issueDateError : null}>
+            <Input
+              type="date"
+              value={issueDate}
+              onChange={(e) => setIssueDate(e.target.value)}
+              onBlur={() => setTouched((t) => ({ ...t, issueDate: true }))}
+            />
+          </FormField>
+          <FormField label="Member" required error={touched.memberId ? memberError : null}>
+            <Select
+              value={memberId || undefined}
+              onValueChange={(v) => {
+                setMemberId(v);
+                setTouched((t) => ({ ...t, memberId: true }));
+              }}
+            >
               <SelectTrigger>
                 <SelectValue placeholder="Select member" />
               </SelectTrigger>
               <SelectContent>
-                {members.map((m) => (
-                  <SelectItem key={m.id} value={m.id}>
-                    #{m.member_no} — {m.name}
-                  </SelectItem>
-                ))}
+                {members.length === 0 ? (
+                  <div className="px-2 py-1.5 text-xs text-muted-foreground">
+                    No members yet.
+                  </div>
+                ) : (
+                  members.map((m) => (
+                    <SelectItem key={m.id} value={m.id}>
+                      #{m.member_no} — {m.name}
+                    </SelectItem>
+                  ))
+                )}
               </SelectContent>
             </Select>
-          </div>
+          </FormField>
         </div>
 
         <div className="mt-5 border-t pt-5">
           <p className="mb-3 text-sm font-semibold">Add Books</p>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-[1fr_1fr_auto]">
-            <div className="space-y-1.5">
-              <Label className="text-xs">Book</Label>
+            <FormField label="Book" required error={touched.bookId && !bookId ? "Please select a book." : null}>
               <Select value={bookId || undefined} onValueChange={setBookId}>
                 <SelectTrigger>
                   <SelectValue placeholder="Select book" />
                 </SelectTrigger>
                 <SelectContent>
-                  {books.map((b) => (
-                    <SelectItem key={b.id} value={b.id}>
-                      #{b.collection_no} — {b.title} ({b.available_copies} avail)
-                    </SelectItem>
-                  ))}
+                  {books.length === 0 ? (
+                    <div className="px-2 py-1.5 text-xs text-muted-foreground">
+                      No available books.
+                    </div>
+                  ) : (
+                    books.map((b) => (
+                      <SelectItem key={b.id} value={b.id}>
+                        #{b.collection_no} — {b.title} ({b.available_copies} avail)
+                      </SelectItem>
+                    ))
+                  )}
                 </SelectContent>
               </Select>
-            </div>
-            <div className="space-y-1.5">
-              <Label className="text-xs">Due Date</Label>
-              <Input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
-            </div>
+            </FormField>
+            <FormField label="Due Date" required>
+              <Input
+                type="date"
+                value={dueDate}
+                min={issueDate}
+                onChange={(e) => setDueDate(e.target.value)}
+              />
+            </FormField>
             <div className="flex items-end">
-              <Button onClick={addBook} className="w-full sm:w-auto">
+              <Button type="button" onClick={addBook} className="w-full sm:w-auto">
                 <Plus className="mr-2 h-4 w-4" /> Add
               </Button>
             </div>
@@ -226,6 +269,7 @@ function IssueBook() {
                     <TableCell className="text-right">
                       <button
                         onClick={() => setStaged((arr) => arr.filter((x) => x.book_id !== s.book_id))}
+                        aria-label="Remove"
                         className="text-destructive hover:opacity-70"
                       >
                         <Trash2 className="h-4 w-4" />
@@ -239,8 +283,13 @@ function IssueBook() {
         </div>
 
         <div className="mt-4 flex justify-end">
-          <Button onClick={issueAll} disabled={staged.length === 0}>
-            <BookCheck className="mr-2 h-4 w-4" /> Issue
+          <Button onClick={issueAll} disabled={issuing || staged.length === 0 || !!memberError}>
+            {issuing ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <BookCheck className="mr-2 h-4 w-4" />
+            )}
+            Issue
           </Button>
         </div>
       </div>
