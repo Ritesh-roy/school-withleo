@@ -362,7 +362,14 @@ function BookMaster() {
         }
       />
 
-      <div className="rounded-xl border bg-card p-5 shadow-[var(--shadow-card)]">
+      <form
+        className="rounded-xl border bg-card p-5 shadow-[var(--shadow-card)]"
+        onSubmit={(e) => {
+          e.preventDefault();
+          save();
+        }}
+        onKeyDown={handleFormKeyDown}
+      >
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <Field label="Collection / Purchase Date">
             <Input
