@@ -11,6 +11,9 @@ import { useEffect, type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
+import { AuthProvider } from "@/lib/auth";
+import { ThemeProvider } from "@/lib/theme";
+import { Toaster } from "@/components/ui/sonner";
 
 function NotFoundComponent() {
   return (
@@ -77,14 +80,28 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Lovable App" },
-      { name: "description", content: "Lovable Generated Project" },
-      { name: "author", content: "Lovable" },
-      { property: "og:title", content: "Lovable App" },
-      { property: "og:description", content: "Lovable Generated Project" },
+      { title: "Smart School ERP — Library Management System" },
+      {
+        name: "description",
+        content:
+          "Modern School ERP and Library Management System: catalogue books, manage members, issue and return books, track fines, and generate reports.",
+      },
+      { name: "author", content: "Smart School" },
+      { property: "og:title", content: "Smart School ERP — Library Management System" },
+      {
+        property: "og:description",
+        content:
+          "Modern School ERP and Library Management System with books, members, issue/return, fines and reports.",
+      },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
       { name: "twitter:site", content: "@Lovable" },
+      { name: "twitter:title", content: "Smart School ERP — Library Management System" },
+      { name: "description", content: "EduFlow Suite is a comprehensive School ERP and Library Management System." },
+      { property: "og:description", content: "EduFlow Suite is a comprehensive School ERP and Library Management System." },
+      { name: "twitter:description", content: "EduFlow Suite is a comprehensive School ERP and Library Management System." },
+      { property: "og:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/fe82f1a5-027c-48c2-b4fd-0bb090e22652/id-preview-4e20dc34--f3eb5332-4f75-4d72-a963-a5a9d1b99fdb.lovable.app-1782111981590.png" },
+      { name: "twitter:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/fe82f1a5-027c-48c2-b4fd-0bb090e22652/id-preview-4e20dc34--f3eb5332-4f75-4d72-a963-a5a9d1b99fdb.lovable.app-1782111981590.png" },
     ],
     links: [
       {
@@ -118,8 +135,13 @@ function RootComponent() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
-      <Outlet />
+      <ThemeProvider>
+        <AuthProvider>
+          {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
+          <Outlet />
+          <Toaster richColors position="top-right" />
+        </AuthProvider>
+      </ThemeProvider>
     </QueryClientProvider>
   );
 }
