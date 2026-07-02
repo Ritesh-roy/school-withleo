@@ -35,13 +35,27 @@ export function exportToCsv(
   });
   const ws = XLSX.utils.json_to_sheet(data);
   const csv = XLSX.utils.sheet_to_csv(ws);
-  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+  // Prepend UTF-8 BOM so Excel/other spreadsheets render ₹ and other
+  // multibyte characters correctly instead of mojibake like "â‚¹".
+  const blob = new Blob(["\uFEFF" + csv], {
+    type: "text/csv;charset=utf-8;",
+  });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
   a.download = `${filename}.csv`;
   a.click();
   URL.revokeObjectURL(url);
+}
+
+// jsPDF's built-in Helvetica font lacks the Rupee glyph (₹), so it renders
+// as a blank / wrong character in exported PDFs. Swap it for "Rs." which
+// every standard PDF font supports. Other non-ASCII currencies fall back
+// the same way.
+function pdfSafe(v: unknown): string {
+  return String(v ?? "")
+    .replace(/₹/g, "Rs. ")
+    .replace(/[\u20A8]/g, "Rs. ");
 }
 
 export function exportToPdf(
@@ -51,18 +65,19 @@ export function exportToPdf(
 ) {
   const doc = new jsPDF({ orientation: "landscape" });
   doc.setFontSize(14);
-  doc.text(title, 14, 16);
+  doc.text(pdfSafe(title), 14, 16);
   doc.setFontSize(9);
   doc.text(`Generated: ${new Date().toLocaleString()}`, 14, 22);
   autoTable(doc, {
     startY: 26,
-    head: [columns.map((c) => c.header)],
-    body: rows.map((row) => columns.map((c) => String(row[c.key] ?? ""))),
+    head: [columns.map((c) => pdfSafe(c.header))],
+    body: rows.map((row) => columns.map((c) => pdfSafe(row[c.key]))),
     styles: { fontSize: 8, cellPadding: 2 },
     headStyles: { fillColor: [49, 89, 184] },
   });
   doc.save(`${title.replace(/\s+/g, "_")}.pdf`);
 }
+
 
 export function printRows(
   title: string,
