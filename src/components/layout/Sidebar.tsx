@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { Link, useRouterState } from "@tanstack/react-router";
 import { ChevronDown, LogOut } from "lucide-react";
-import logo from "@/assets/school-withleo-logo.png.asset.json";
+import { AppLogo } from "@/components/library/AppLogo";
+import { APP_NAME } from "@/lib/branding";
 import { filterNavForRole } from "./nav-config";
 import { useAuth } from "@/lib/auth";
 import { cn } from "@/lib/utils";
@@ -20,8 +21,10 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
   return (
     <aside className="flex h-full w-64 flex-col border-r border-sidebar-border bg-sidebar">
       <div className="flex h-14 items-center gap-2 border-b border-sidebar-border px-4">
-        <img src={logo.url} alt="School withleo" className="h-8 w-8 rounded-md object-contain" />
-        <span className="font-bold text-sidebar-foreground">School withleo</span>
+        <div className="h-8 w-8 shrink-0 overflow-hidden rounded-md">
+          <AppLogo className="h-8 w-8" />
+        </div>
+        <span className="font-bold text-sidebar-foreground">{APP_NAME}</span>
       </div>
 
       <nav className="flex-1 space-y-1 overflow-y-auto p-3">
