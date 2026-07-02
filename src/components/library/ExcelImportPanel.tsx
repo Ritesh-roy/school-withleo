@@ -132,9 +132,10 @@ export function ExcelImportPanel() {
     const existing = new Set(
       (data ?? []).map((r) => `${r.master_type}::${r.name.toLowerCase()}`),
     );
-    const toCreate: { master_type: string; name: string; status: boolean }[] = [];
+    type MasterType = (typeof MASTER_TYPES)[number];
+    const toCreate: { master_type: MasterType; name: string; status: boolean }[] = [];
     for (const r of validRows) {
-      const map: Record<string, string> = {
+      const map: Record<MasterType, string> = {
         book_type: r.bookType,
         category: r.category,
         author: r.author,
