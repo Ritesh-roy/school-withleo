@@ -44,8 +44,15 @@ const CHART_COLORS = [
   "#65a30d",
 ];
 
-function monthKey(d: string) {
-  return new Date(d).toLocaleDateString("en-US", { month: "short", year: "2-digit" });
+// Sortable month key: "YYYY-MM" for correct chronological ordering,
+// plus a display label. Chart sorts by the key, then renders the label.
+function monthMeta(d: string) {
+  const dt = new Date(d);
+  const y = dt.getFullYear();
+  const m = dt.getMonth(); // 0..11
+  const key = `${y}-${String(m + 1).padStart(2, "0")}`;
+  const label = dt.toLocaleDateString("en-US", { month: "short", year: "2-digit" });
+  return { key, label };
 }
 
 function Dashboard() {
@@ -82,16 +89,18 @@ function Dashboard() {
     (m) => new Date(m.created_at).getMonth() === thisMonth,
   ).length;
 
-  // charts
-  const issueByMonth: Record<string, number> = {};
+  // charts — bucket by "YYYY-MM" so months sort correctly (Jan → Dec).
+  const issueByMonth: Record<string, { label: string; count: number }> = {};
   issues.forEach((i) => {
-    const k = monthKey(i.issue_date);
-    issueByMonth[k] = (issueByMonth[k] ?? 0) + 1;
+    if (!i.issue_date) return;
+    const { key, label } = monthMeta(i.issue_date);
+    if (!issueByMonth[key]) issueByMonth[key] = { label, count: 0 };
+    issueByMonth[key].count += 1;
   });
-  const issueChart = Object.entries(issueByMonth).slice(-6).map(([month, count]) => ({
-    month,
-    Issues: count,
-  }));
+  const issueChart = Object.entries(issueByMonth)
+    .sort(([a], [b]) => a.localeCompare(b))
+    .slice(-12)
+    .map(([, v]) => ({ month: v.label, Issues: v.count }));
 
   const byCategory: Record<string, number> = {};
   books.forEach((b) => {
@@ -103,17 +112,18 @@ function Dashboard() {
     value,
   }));
 
-  const revByMonth: Record<string, number> = {};
+  const revByMonth: Record<string, { label: string; total: number }> = {};
   issues.forEach((i) => {
     if (i.fine_collected) {
-      const k = monthKey(i.return_date || i.issue_date);
-      revByMonth[k] = (revByMonth[k] ?? 0) + Number(i.fine_collected);
+      const { key, label } = monthMeta(i.return_date || i.issue_date);
+      if (!revByMonth[key]) revByMonth[key] = { label, total: 0 };
+      revByMonth[key].total += Number(i.fine_collected);
     }
   });
-  const revChart = Object.entries(revByMonth).slice(-6).map(([month, total]) => ({
-    month,
-    Revenue: total,
-  }));
+  const revChart = Object.entries(revByMonth)
+    .sort(([a], [b]) => a.localeCompare(b))
+    .slice(-12)
+    .map(([, v]) => ({ month: v.label, Revenue: v.total }));
 
   const recent = [...issues]
     .sort((a, b) => (a.created_at < b.created_at ? 1 : -1))
