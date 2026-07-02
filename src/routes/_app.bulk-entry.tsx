@@ -42,6 +42,8 @@ import {
   validators,
 } from "@/lib/form-utils";
 import { toast } from "sonner";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { ExcelImportPanel } from "@/components/library/ExcelImportPanel";
 
 export const Route = createFileRoute("/_app/bulk-entry")({
   head: () => ({ meta: [{ title: "Bulk Entry — School withleo" }] }),
