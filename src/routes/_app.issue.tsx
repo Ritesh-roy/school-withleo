@@ -304,7 +304,7 @@ function IssueBook() {
         </div>
 
         <div className="mt-4 flex justify-end">
-          <Button onClick={issueAll} disabled={issuing || staged.length === 0 || !!memberError}>
+          <Button onClick={issueAll} disabled={issuing || staged.length === 0 || !!memberError || !!regDateError}>
             {issuing ? (
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
             ) : (
