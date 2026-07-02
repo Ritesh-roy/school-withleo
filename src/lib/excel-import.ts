@@ -76,7 +76,7 @@ export function downloadSampleTemplate() {
       Copies: 3,
       Location: "Main Campus",
       Rack: "R1",
-      Shelf: "S2",
+
     },
     {
       "Book Type": "Textbook",
