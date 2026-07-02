@@ -187,7 +187,7 @@ export function ExcelImportPanel() {
           no_of_pages: r.pages ?? null,
           no_of_copies: r.copies,
           available_copies: r.copies,
-          location: [r.location, r.rack, r.shelf].filter(Boolean).join(" / ") || null,
+          location: [r.location, r.rack].filter(Boolean).join(" / ") || null,
           purchase_date: todayISO(),
         }));
         const { error } = await supabase.from("books").insert(payload);
