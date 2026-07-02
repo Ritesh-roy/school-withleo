@@ -89,6 +89,13 @@ function IssueBook() {
 
   const memberError = validators.required(memberId, "Member");
   const issueDateError = validators.required(issueDate, "Issue Date");
+  const selectedMember = members.find((m) => m.id === memberId);
+  const memberRegDate = selectedMember?.membership_date ?? "";
+  const regDateError =
+    memberRegDate && issueDate && issueDate < memberRegDate
+      ? "Issue date cannot be earlier than the member registration date."
+      : null;
+
 
   const addBook = () => {
     setTouched((t) => ({ ...t, bookId: true, dueDate: true }));
