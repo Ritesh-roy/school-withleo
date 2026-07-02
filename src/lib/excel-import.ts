@@ -16,7 +16,6 @@ export const EXCEL_COLUMNS = [
   "Copies",
   "Location",
   "Rack",
-  "Shelf",
 ] as const;
 
 export type ExcelColumn = (typeof EXCEL_COLUMNS)[number];
@@ -24,6 +23,8 @@ export type ExcelColumn = (typeof EXCEL_COLUMNS)[number];
 export interface RawExcelRow {
   [key: string]: string | number | undefined;
 }
+
+
 
 export interface ParsedRow {
   index: number; // 1-based row number for user display
