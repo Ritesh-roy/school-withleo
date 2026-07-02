@@ -20,7 +20,10 @@ export type Database = {
           actor_name: string | null
           created_at: string
           detail: string | null
+          event_type: string | null
           id: string
+          ip_address: string | null
+          user_agent: string | null
           user_id: string | null
         }
         Insert: {
@@ -28,7 +31,10 @@ export type Database = {
           actor_name?: string | null
           created_at?: string
           detail?: string | null
+          event_type?: string | null
           id?: string
+          ip_address?: string | null
+          user_agent?: string | null
           user_id?: string | null
         }
         Update: {
@@ -36,10 +42,60 @@ export type Database = {
           actor_name?: string | null
           created_at?: string
           detail?: string | null
+          event_type?: string | null
           id?: string
+          ip_address?: string | null
+          user_agent?: string | null
           user_id?: string | null
         }
         Relationships: []
+      }
+      almirahs: {
+        Row: {
+          code: string | null
+          created_at: string
+          created_by: string | null
+          deleted_at: string | null
+          id: string
+          name: string
+          room_id: string
+          status: boolean
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          code?: string | null
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          id?: string
+          name: string
+          room_id: string
+          status?: boolean
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          code?: string | null
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          id?: string
+          name?: string
+          room_id?: string
+          status?: boolean
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "almirahs_room_id_fkey"
+            columns: ["room_id"]
+            isOneToOne: false
+            referencedRelation: "rooms"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       book_issues: {
         Row: {
@@ -100,6 +156,231 @@ export type Database = {
             columns: ["member_id"]
             isOneToOne: false
             referencedRelation: "members"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      book_locations: {
+        Row: {
+          almirah_id: string | null
+          book_id: string
+          building_id: string | null
+          campus_id: string | null
+          floor_id: string | null
+          position: number | null
+          rack_id: string | null
+          room_id: string | null
+          shelf_id: string | null
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          almirah_id?: string | null
+          book_id: string
+          building_id?: string | null
+          campus_id?: string | null
+          floor_id?: string | null
+          position?: number | null
+          rack_id?: string | null
+          room_id?: string | null
+          shelf_id?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          almirah_id?: string | null
+          book_id?: string
+          building_id?: string | null
+          campus_id?: string | null
+          floor_id?: string | null
+          position?: number | null
+          rack_id?: string | null
+          room_id?: string | null
+          shelf_id?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "book_locations_almirah_id_fkey"
+            columns: ["almirah_id"]
+            isOneToOne: false
+            referencedRelation: "almirahs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "book_locations_book_id_fkey"
+            columns: ["book_id"]
+            isOneToOne: true
+            referencedRelation: "books"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "book_locations_building_id_fkey"
+            columns: ["building_id"]
+            isOneToOne: false
+            referencedRelation: "buildings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "book_locations_campus_id_fkey"
+            columns: ["campus_id"]
+            isOneToOne: false
+            referencedRelation: "campuses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "book_locations_floor_id_fkey"
+            columns: ["floor_id"]
+            isOneToOne: false
+            referencedRelation: "floors"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "book_locations_rack_id_fkey"
+            columns: ["rack_id"]
+            isOneToOne: false
+            referencedRelation: "rack_inventory"
+            referencedColumns: ["rack_id"]
+          },
+          {
+            foreignKeyName: "book_locations_rack_id_fkey"
+            columns: ["rack_id"]
+            isOneToOne: false
+            referencedRelation: "racks"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "book_locations_room_id_fkey"
+            columns: ["room_id"]
+            isOneToOne: false
+            referencedRelation: "rooms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "book_locations_shelf_id_fkey"
+            columns: ["shelf_id"]
+            isOneToOne: false
+            referencedRelation: "shelves"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      book_movements: {
+        Row: {
+          actor_id: string | null
+          actor_name: string | null
+          book_id: string
+          created_at: string
+          event_type: string
+          from_snapshot: Json | null
+          id: string
+          remarks: string | null
+          to_snapshot: Json | null
+        }
+        Insert: {
+          actor_id?: string | null
+          actor_name?: string | null
+          book_id: string
+          created_at?: string
+          event_type: string
+          from_snapshot?: Json | null
+          id?: string
+          remarks?: string | null
+          to_snapshot?: Json | null
+        }
+        Update: {
+          actor_id?: string | null
+          actor_name?: string | null
+          book_id?: string
+          created_at?: string
+          event_type?: string
+          from_snapshot?: Json | null
+          id?: string
+          remarks?: string | null
+          to_snapshot?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "book_movements_book_id_fkey"
+            columns: ["book_id"]
+            isOneToOne: false
+            referencedRelation: "books"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      book_transfers: {
+        Row: {
+          book_id: string
+          from_rack_id: string | null
+          from_snapshot: Json | null
+          id: string
+          moved_at: string
+          moved_by: string | null
+          moved_by_name: string | null
+          remarks: string | null
+          to_rack_id: string | null
+          to_snapshot: Json | null
+        }
+        Insert: {
+          book_id: string
+          from_rack_id?: string | null
+          from_snapshot?: Json | null
+          id?: string
+          moved_at?: string
+          moved_by?: string | null
+          moved_by_name?: string | null
+          remarks?: string | null
+          to_rack_id?: string | null
+          to_snapshot?: Json | null
+        }
+        Update: {
+          book_id?: string
+          from_rack_id?: string | null
+          from_snapshot?: Json | null
+          id?: string
+          moved_at?: string
+          moved_by?: string | null
+          moved_by_name?: string | null
+          remarks?: string | null
+          to_rack_id?: string | null
+          to_snapshot?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "book_transfers_book_id_fkey"
+            columns: ["book_id"]
+            isOneToOne: false
+            referencedRelation: "books"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "book_transfers_from_rack_id_fkey"
+            columns: ["from_rack_id"]
+            isOneToOne: false
+            referencedRelation: "rack_inventory"
+            referencedColumns: ["rack_id"]
+          },
+          {
+            foreignKeyName: "book_transfers_from_rack_id_fkey"
+            columns: ["from_rack_id"]
+            isOneToOne: false
+            referencedRelation: "racks"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "book_transfers_to_rack_id_fkey"
+            columns: ["to_rack_id"]
+            isOneToOne: false
+            referencedRelation: "rack_inventory"
+            referencedColumns: ["rack_id"]
+          },
+          {
+            foreignKeyName: "book_transfers_to_rack_id_fkey"
+            columns: ["to_rack_id"]
+            isOneToOne: false
+            referencedRelation: "racks"
             referencedColumns: ["id"]
           },
         ]
@@ -205,6 +486,136 @@ export type Database = {
           volume?: string | null
         }
         Relationships: []
+      }
+      buildings: {
+        Row: {
+          campus_id: string
+          code: string | null
+          created_at: string
+          created_by: string | null
+          deleted_at: string | null
+          id: string
+          name: string
+          status: boolean
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          campus_id: string
+          code?: string | null
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          id?: string
+          name: string
+          status?: boolean
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          campus_id?: string
+          code?: string | null
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          id?: string
+          name?: string
+          status?: boolean
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "buildings_campus_id_fkey"
+            columns: ["campus_id"]
+            isOneToOne: false
+            referencedRelation: "campuses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      campuses: {
+        Row: {
+          code: string | null
+          created_at: string
+          created_by: string | null
+          deleted_at: string | null
+          id: string
+          name: string
+          status: boolean
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          code?: string | null
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          id?: string
+          name: string
+          status?: boolean
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          code?: string | null
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          id?: string
+          name?: string
+          status?: boolean
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
+      floors: {
+        Row: {
+          building_id: string
+          created_at: string
+          created_by: string | null
+          deleted_at: string | null
+          id: string
+          level_no: number | null
+          name: string
+          status: boolean
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          building_id: string
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          id?: string
+          level_no?: number | null
+          name: string
+          status?: boolean
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          building_id?: string
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          id?: string
+          level_no?: number | null
+          name?: string
+          status?: boolean
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "floors_building_id_fkey"
+            columns: ["building_id"]
+            isOneToOne: false
+            referencedRelation: "buildings"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       library_masters: {
         Row: {
@@ -317,6 +728,103 @@ export type Database = {
         }
         Relationships: []
       }
+      racks: {
+        Row: {
+          almirah_id: string
+          capacity: number
+          code: string | null
+          created_at: string
+          created_by: string | null
+          deleted_at: string | null
+          id: string
+          name: string
+          status: boolean
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          almirah_id: string
+          capacity?: number
+          code?: string | null
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          id?: string
+          name: string
+          status?: boolean
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          almirah_id?: string
+          capacity?: number
+          code?: string | null
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          id?: string
+          name?: string
+          status?: boolean
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "racks_almirah_id_fkey"
+            columns: ["almirah_id"]
+            isOneToOne: false
+            referencedRelation: "almirahs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      rooms: {
+        Row: {
+          code: string | null
+          created_at: string
+          created_by: string | null
+          deleted_at: string | null
+          floor_id: string
+          id: string
+          name: string
+          status: boolean
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          code?: string | null
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          floor_id: string
+          id?: string
+          name: string
+          status?: boolean
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          code?: string | null
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          floor_id?: string
+          id?: string
+          name?: string
+          status?: boolean
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "rooms_floor_id_fkey"
+            columns: ["floor_id"]
+            isOneToOne: false
+            referencedRelation: "floors"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       settings: {
         Row: {
           address: string | null
@@ -362,6 +870,60 @@ export type Database = {
         }
         Relationships: []
       }
+      shelves: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          deleted_at: string | null
+          id: string
+          name: string
+          position: number | null
+          rack_id: string
+          status: boolean
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          id?: string
+          name: string
+          position?: number | null
+          rack_id: string
+          status?: boolean
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          id?: string
+          name?: string
+          position?: number | null
+          rack_id?: string
+          status?: boolean
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "shelves_rack_id_fkey"
+            columns: ["rack_id"]
+            isOneToOne: false
+            referencedRelation: "rack_inventory"
+            referencedColumns: ["rack_id"]
+          },
+          {
+            foreignKeyName: "shelves_rack_id_fkey"
+            columns: ["rack_id"]
+            isOneToOne: false
+            referencedRelation: "racks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_roles: {
         Row: {
           created_at: string
@@ -385,7 +947,25 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      rack_inventory: {
+        Row: {
+          almirah_id: string | null
+          available: number | null
+          capacity: number | null
+          current_count: number | null
+          rack_id: string | null
+          rack_name: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "racks_almirah_id_fkey"
+            columns: ["almirah_id"]
+            isOneToOne: false
+            referencedRelation: "almirahs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
       has_role: {
