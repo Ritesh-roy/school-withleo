@@ -253,17 +253,15 @@ function LibraryMaster() {
                   <TableRow key={r.id}>
                     <TableCell className="font-medium">{r.name}</TableCell>
                     <TableCell>
-                      <span
-                        className={cn(
-                          "rounded-full px-2 py-0.5 text-xs font-medium",
-                          r.status
-                            ? "bg-[var(--gradient-green)] text-white"
-                            : "bg-muted text-muted-foreground",
-                        )}
-                      >
-                        {r.status ? "Active" : "Inactive"}
-                      </span>
+                      {r.status ? (
+                        <span className="text-xs text-muted-foreground">—</span>
+                      ) : (
+                        <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
+                          Inactive
+                        </span>
+                      )}
                     </TableCell>
+
                     <TableCell className="text-right">
                       <button
                         onClick={() => {

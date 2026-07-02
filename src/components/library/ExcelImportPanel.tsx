@@ -187,7 +187,7 @@ export function ExcelImportPanel() {
           no_of_pages: r.pages ?? null,
           no_of_copies: r.copies,
           available_copies: r.copies,
-          location: [r.location, r.rack, r.shelf].filter(Boolean).join(" / ") || null,
+          location: [r.location, r.rack].filter(Boolean).join(" / ") || null,
           purchase_date: todayISO(),
         }));
         const { error } = await supabase.from("books").insert(payload);
@@ -422,27 +422,31 @@ export function ExcelImportPanel() {
           <DialogHeader>
             <DialogTitle>Import complete</DialogTitle>
             <DialogDescription>
-              {success} books added, {failed} failed.
+              {success} added · {dupCount} duplicate{dupCount === 1 ? "" : "s"} skipped · {failed} failed
             </DialogDescription>
           </DialogHeader>
-          <div className="grid grid-cols-3 gap-3 text-center">
-            <div className="rounded-lg border p-3">
-              <div className="text-2xl font-semibold text-emerald-600">{success}</div>
-              <div className="text-xs text-muted-foreground">Succeeded</div>
-            </div>
-            <div className="rounded-lg border p-3">
-              <div className="text-2xl font-semibold text-destructive">{failed}</div>
-              <div className="text-xs text-muted-foreground">Failed</div>
-            </div>
+          <div className="grid grid-cols-4 gap-3 text-center">
             <div className="rounded-lg border p-3">
               <div className="text-2xl font-semibold">{rows.length}</div>
-              <div className="text-xs text-muted-foreground">Total rows</div>
+              <div className="text-xs text-muted-foreground">Total</div>
+            </div>
+            <div className="rounded-lg border p-3">
+              <div className="text-2xl font-semibold text-emerald-600">{success}</div>
+              <div className="text-xs text-muted-foreground">Imported</div>
+            </div>
+            <div className="rounded-lg border p-3">
+              <div className="text-2xl font-semibold text-amber-600">{dupCount}</div>
+              <div className="text-xs text-muted-foreground">Duplicates</div>
+            </div>
+            <div className="rounded-lg border p-3">
+              <div className="text-2xl font-semibold text-destructive">{failed + invalidCount}</div>
+              <div className="text-xs text-muted-foreground">Failed</div>
             </div>
           </div>
           <DialogFooter>
-            {failed > 0 && (
+            {(failed > 0 || invalidCount > 0 || dupCount > 0) && (
               <Button variant="outline" onClick={() => exportFailedRows(rows)}>
-                <Download className="mr-2 h-4 w-4" /> Export failed
+                <Download className="mr-2 h-4 w-4" /> Export skipped
               </Button>
             )}
             <Button
@@ -456,6 +460,7 @@ export function ExcelImportPanel() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
     </div>
   );
 }

@@ -62,11 +62,12 @@ function IssueBook() {
     queryFn: async () => {
       const { data } = await supabase
         .from("members")
-        .select("id,member_no,name")
+        .select("id,member_no,name,membership_date")
         .order("name");
       return data ?? [];
     },
   });
+
 
   const { data: books = [] } = useQuery({
     queryKey: ["books-available"],
@@ -88,6 +89,13 @@ function IssueBook() {
 
   const memberError = validators.required(memberId, "Member");
   const issueDateError = validators.required(issueDate, "Issue Date");
+  const selectedMember = members.find((m) => m.id === memberId);
+  const memberRegDate = selectedMember?.membership_date ?? "";
+  const regDateError =
+    memberRegDate && issueDate && issueDate < memberRegDate
+      ? "Issue date cannot be earlier than the member registration date."
+      : null;
+
 
   const addBook = () => {
     setTouched((t) => ({ ...t, bookId: true, dueDate: true }));
@@ -117,9 +125,11 @@ function IssueBook() {
     setTouched({ memberId: true, issueDate: true });
     if (memberError) return toast.error(memberError);
     if (issueDateError) return toast.error(issueDateError);
+    if (regDateError) return toast.error(regDateError);
     if (staged.length === 0) return toast.error("Add at least one book.");
     if (issuing) return;
     setIssuing(true);
+
     try {
       const rows = staged.map((s) => ({
         member_id: memberId,
@@ -164,14 +174,25 @@ function IssueBook() {
 
       <div className="rounded-xl border bg-card p-5 shadow-[var(--shadow-card)]" onKeyDown={handleFormKeyDown as never}>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <FormField label="Issue Date" required error={touched.issueDate ? issueDateError : null}>
+          <FormField
+            label="Issue Date"
+            required
+            error={touched.issueDate ? issueDateError || regDateError : null}
+            hint={
+              memberRegDate
+                ? `Member registered on ${fmtDate(memberRegDate)}`
+                : undefined
+            }
+          >
             <Input
               type="date"
               value={issueDate}
+              min={memberRegDate || undefined}
               onChange={(e) => setIssueDate(e.target.value)}
               onBlur={() => setTouched((t) => ({ ...t, issueDate: true }))}
             />
           </FormField>
+
           <FormField label="Member" required error={touched.memberId ? memberError : null}>
             <Select
               value={memberId || undefined}
@@ -283,7 +304,7 @@ function IssueBook() {
         </div>
 
         <div className="mt-4 flex justify-end">
-          <Button onClick={issueAll} disabled={issuing || staged.length === 0 || !!memberError}>
+          <Button onClick={issueAll} disabled={issuing || staged.length === 0 || !!memberError || !!regDateError}>
             {issuing ? (
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
             ) : (

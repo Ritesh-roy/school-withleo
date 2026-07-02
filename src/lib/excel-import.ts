@@ -16,7 +16,6 @@ export const EXCEL_COLUMNS = [
   "Copies",
   "Location",
   "Rack",
-  "Shelf",
 ] as const;
 
 export type ExcelColumn = (typeof EXCEL_COLUMNS)[number];
@@ -24,6 +23,8 @@ export type ExcelColumn = (typeof EXCEL_COLUMNS)[number];
 export interface RawExcelRow {
   [key: string]: string | number | undefined;
 }
+
+
 
 export interface ParsedRow {
   index: number; // 1-based row number for user display
@@ -42,7 +43,7 @@ export interface ParsedRow {
   copies: number;
   location: string;
   rack: string;
-  shelf: string;
+
   errors: string[];
   status: "valid" | "invalid" | "duplicate";
 }
@@ -75,7 +76,7 @@ export function downloadSampleTemplate() {
       Copies: 3,
       Location: "Main Campus",
       Rack: "R1",
-      Shelf: "S2",
+
     },
     {
       "Book Type": "Textbook",
@@ -92,7 +93,7 @@ export function downloadSampleTemplate() {
       Copies: 5,
       Location: "Main Campus",
       Rack: "R2",
-      Shelf: "S1",
+
     },
   ];
   const ws = XLSX.utils.json_to_sheet(sample, { header: [...EXCEL_COLUMNS] });
@@ -146,7 +147,7 @@ function validateRow(raw: RawExcelRow, rowNo: number): ParsedRow {
     copies: Math.max(1, Math.floor(copiesN)),
     location: str(raw["Location"]),
     rack: str(raw["Rack"]),
-    shelf: str(raw["Shelf"]),
+
     errors,
     status: errors.length ? "invalid" : "valid",
   };
@@ -179,7 +180,7 @@ export function markDuplicatesInDb(
       return {
         ...r,
         status: "duplicate",
-        errors: [...r.errors, "ISBN already exists in database"],
+        errors: [...r.errors, "Duplicate entry. This book already exists."],
       };
     }
     return r;
