@@ -292,6 +292,7 @@ function LibraryMaster() {
           </Table>
         </div>
       </div>
+      )}
 
       <AlertDialog open={!!deleteId} onOpenChange={(o) => !o && setDeleteId(null)}>
         <AlertDialogContent>
