@@ -125,9 +125,11 @@ function IssueBook() {
     setTouched({ memberId: true, issueDate: true });
     if (memberError) return toast.error(memberError);
     if (issueDateError) return toast.error(issueDateError);
+    if (regDateError) return toast.error(regDateError);
     if (staged.length === 0) return toast.error("Add at least one book.");
     if (issuing) return;
     setIssuing(true);
+
     try {
       const rows = staged.map((s) => ({
         member_id: memberId,
