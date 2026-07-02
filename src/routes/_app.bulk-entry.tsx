@@ -42,6 +42,8 @@ import {
   validators,
 } from "@/lib/form-utils";
 import { toast } from "sonner";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { ExcelImportPanel } from "@/components/library/ExcelImportPanel";
 
 export const Route = createFileRoute("/_app/bulk-entry")({
   head: () => ({ meta: [{ title: "Bulk Entry — School withleo" }] }),
@@ -240,9 +242,15 @@ function BulkEntry() {
     <div>
       <PageHeader
         title="Bulk Entry"
-        description="Quickly add many books in succession"
+        description="Quickly add many books in succession, or import from Excel"
         icon={<Boxes className="h-6 w-6 text-primary" />}
       />
+      <Tabs defaultValue="manual" className="mb-4">
+        <TabsList>
+          <TabsTrigger value="manual">Manual Entry</TabsTrigger>
+          <TabsTrigger value="excel">Import Excel</TabsTrigger>
+        </TabsList>
+        <TabsContent value="manual" className="mt-4">
       <form
         className="rounded-xl border bg-card p-5 shadow-[var(--shadow-card)]"
         noValidate
@@ -354,6 +362,11 @@ function BulkEntry() {
       <div className="mt-6">
         <DataTable columns={columns} data={books} searchPlaceholder="Search books…" />
       </div>
+        </TabsContent>
+        <TabsContent value="excel" className="mt-4">
+          <ExcelImportPanel />
+        </TabsContent>
+      </Tabs>
 
       {/* View dialog */}
       <Dialog open={!!viewRow} onOpenChange={(o) => !o && setViewRow(null)}>

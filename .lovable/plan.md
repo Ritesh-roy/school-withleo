@@ -1,138 +1,80 @@
 
-# School withleo — Enterprise Upgrade Plan
+# Scope — three big pieces, delivered in order
 
-Scope confirmed: **parallel MySQL/Express backend** (generated as artifacts, you host separately) + finish all location/audit/quick-fix work on the live Lovable Cloud (Postgres) backend so the app keeps running. UI unchanged.
-
----
-
-## Milestone 1 — Quick Fixes (live app)
-
-1. **Login page** (`src/routes/auth.tsx`)
-   - Inline "Invalid credentials" alert directly above Email/Password (not disconnected toast).
-   - Password field: eye icon toggle (Show/Hide), `aria-label`, keyboard accessible.
-
-2. **Centralized logo** (`src/lib/branding.ts` + update Sidebar/Topbar/Auth)
-   - Single `LOGO_URL` + `<AppLogo/>` component. Replace all direct img refs.
-   - Fixes broken logo across Admin/Librarian/Sidebar/Header.
-
-3. **Dashboard chart** (`src/routes/_app.dashboard.tsx`)
-   - Sort issue-by-month series by month index Jan→Dec dynamically (no manual order).
-
-4. **Book Master number fields** (`src/routes/_app.books.tsx`)
-   - Pages / Price / MRP default = `""` not `0`. Validation: Pages > 0, Price ≥ 0, MRP ≥ 0.
-
-5. **Book Master cover image**
-   - Create Lovable Cloud Storage bucket `book-covers` (public read, staff write).
-   - Add drag-and-drop upload (JPG/PNG/WEBP, ≤2MB) with preview, alongside existing URL input. Store either uploaded public URL or user URL in `books.image_url`.
-
-6. **Bulk Entry CRUD** (`src/routes/_app.bulk-entry.tsx`)
-   - Row-level Edit / Delete / View actions (dialog).
-   - Unique ISBN check before insert → "ISBN already exists." Add DB unique index on `books.isbn` (partial, where isbn not null).
+This is a large request. To keep it shippable and reviewable, I'll do it in **three phases** and stop after each so you can verify. Nothing about UI theme, routes, or existing features changes — only functionality is upgraded.
 
 ---
 
-## Milestone 2 — Location Hierarchy (live Postgres backend)
+## Phase 1 — Bulk Entry: Excel Import (live app)
 
-Because rebuilding the UI is out of scope, the 7-level hierarchy is added as **structured data + optional pickers**, keeping the current Location tab in Library Master working as before (legacy free-text names remain).
+Keep the current manual "Add Book" form on `/bulk-entry` exactly as-is. Add a second panel next to it: **Import Excel**.
 
-### New tables (Postgres migration)
+- Drag-and-drop + file picker for `.xlsx` / `.xls` (uses already-installed `xlsx`).
+- "Download Sample Template" button → generates an `.xlsx` with the exact columns:
+  `Book Type, Category, ISBN, Title, Author, Publisher, Language, Edition, Price, MRP, Pages, Copies, Location, Rack, Shelf`.
+- **Preview step**: parsed rows shown in a table with per-row validation status (valid / invalid + reason, duplicate ISBN in file, duplicate ISBN already in DB).
+- Import runs in **batches of 200** with a progress bar and live "Success / Failed" counters.
+- On finish: summary dialog + **Export failed rows** button (downloads `.xlsx` with an added `Error` column).
+- Masters (Book Type, Category, Author, Publisher, Language) auto-created if missing so rows don't fail on unknown lookups (toggleable checkbox: "Auto-create missing masters").
+- DB uniqueness enforced by existing partial unique index on `books.isbn`.
 
-```text
-campuses      (id, name, code, status)
-buildings     (id, campus_id, name, code, status)
-floors        (id, building_id, name, level_no, status)
-rooms         (id, floor_id, name, code, status)
-almirahs      (id, room_id, name, code, status)
-racks         (id, almirah_id, name, code, capacity int, status)
-shelves       (id, rack_id, name, position int, status)   -- optional
-book_locations(book_id PK/FK, campus_id, building_id, floor_id, room_id,
-               almirah_id, rack_id, shelf_id, position int, updated_at, updated_by)
-book_transfers(id, book_id, from_rack_id, to_rack_id, from_json, to_json,
-               moved_by, moved_at, remarks)
-book_movements(id, book_id, event_type enum(issue|return|transfer|lost|damaged|deleted|updated),
-               actor_id, actor_name, from_json, to_json, remarks, created_at)
-```
-
-- All timestamps, `created_by`, `updated_by`, `deleted_at` (soft delete) on every table.
-- FKs cascade sensibly; indexes on every FK + `books.isbn`, `books.accession_no`.
-- GRANTs + RLS: staff (admin/librarian) full CRUD; teacher/student read-only where needed.
-
-### Rack capacity & auto-inventory (DB triggers)
-
-- View `rack_inventory` = `capacity`, `current_count` (from `book_locations`), `available`.
-- Triggers on `book_locations` insert/update/delete + on `book_issues` (issued books decrement available count on the source rack) keep counts automatic.
-
-### Book location search
-
-- New route `src/routes/_app.book-location.tsx` (added under Library group; no sidebar restructure).
-- Search by ISBN / accession / name / author / category / publisher → shows Campus → Building → Floor → Room → Almirah → Rack → Shelf → Position.
-
-### Book Transfer
-
-- New route `src/routes/_app.book-transfer.tsx`: pick book, choose new location via cascading dropdowns → writes `book_locations` + `book_transfers` + `book_movements`.
-
-### Movement history
-
-- New route `src/routes/_app.book-history.tsx`: filterable timeline per book.
+Files touched: `src/routes/_app.bulk-entry.tsx` (add tab/section, no removals), new `src/lib/excel-import.ts` helper. No schema change.
 
 ---
 
-## Milestone 3 — Audit Log Upgrade
+## Phase 2 — Location Master: real 7-level hierarchy UI
 
-- Extend `activity_logs`: add `ip_address inet`, `user_agent text`, `event_type text`.
-- Server function `logEvent` captures IP via `getRequestHeader('x-forwarded-for')` and UA header.
-- Emit events for: login, logout, create/update/delete on masters/books/members, issue, return, transfer, role change, settings change.
-- Existing Activity page gets IP / browser columns.
+DB tables already exist (`campuses → buildings → floors → rooms → almirahs → racks → shelves`, plus `book_locations`, `book_transfers`, `book_movements`, `rack_inventory` view). Only the UI is missing.
+
+- **Rewrite the "Location" tab** inside existing `/library-master` page — same page, same theme, same tab bar. Replace the single-name form with a hierarchy manager:
+  - Left: tree/breadcrumb selector (Campus → Building → Floor → Room → Almirah → Rack → Shelf).
+  - Right: CRUD form for the currently selected level (add child, edit, soft-delete).
+  - Rack level shows: Capacity, Current Books, Available (from `rack_inventory` view).
+- **Book Master**: add cascading dropdowns (Campus→…→Rack→Shelf + Position number) that write to `book_locations` on save. The existing free-text Location field stays for backwards compatibility, marked "legacy".
+- New route `/book-location` (search any book → shows full breadcrumb + position).
+- New route `/book-transfer` (pick book → pick new rack/shelf → writes `book_transfers` + `book_movements`, auto-updates rack inventory via existing trigger).
+- Sidebar: add "Book Location" and "Book Transfer" under the existing Library group (no restructure).
+
+No schema changes needed — the tables from the earlier migration are used as-is.
 
 ---
 
-## Milestone 4 — Parallel MySQL Backend (artifacts only)
+## Phase 3 — MySQL + Express backend bundle (standalone artifact)
 
-Generated under `backend-mysql/` — you host it separately (Railway / VPS / etc.). The Lovable app keeps using Lovable Cloud; nothing in the live app connects to MySQL.
-
-### Deliverables
+Generated under `backend-mysql/` in this repo. **Not** wired into the live app — you download / host it separately (Railway, VPS, XAMPP, etc.). The Lovable app keeps running on Lovable Cloud unchanged.
 
 ```text
 backend-mysql/
 ├── sql/
-│   ├── 001_schema.sql        -- full normalized MySQL 8 schema (all 24 tables you listed)
-│   ├── 002_seed.sql          -- admin, librarian, sample masters/books/members
-│   └── README.md             -- import instructions
+│   ├── 001_schema.sql     -- all tables listed below, FKs, indexes, unique, soft-delete
+│   ├── 002_seed.sql       -- admin/librarian users, sample masters, sample books
+│   └── README.md          -- `mysql -u root -p school_withleo < sql/001_schema.sql`
 ├── src/
-│   ├── server.ts             -- Express, helmet, cors, rate-limit, morgan
-│   ├── db.ts                 -- mysql2/promise pool
-│   ├── auth/                 -- bcrypt, JWT + refresh, role middleware
-│   ├── middleware/           -- validate (zod), errorHandler, auditLogger
-│   ├── modules/              -- controllers + services + repositories per domain
-│   │   ├── users/ roles/ books/ members/ issues/ returns/
-│   │   ├── locations/ transfers/ movements/ audit/ dashboard/
-│   └── routes/               -- REST routers mounted at /api/v1/*
+│   ├── server.ts          -- express + helmet + cors + rate-limit + morgan
+│   ├── db.ts              -- mysql2/promise pool
+│   ├── auth/              -- bcrypt, JWT access+refresh, role middleware
+│   ├── middleware/        -- validate (zod), errorHandler, auditLogger
+│   ├── modules/
+│   │   users/ roles/ permissions/ books/ authors/ categories/ publishers/
+│   │   languages/ book-types/ libraries/ buildings/ floors/ rooms/
+│   │   almirahs/ racks/ shelves/ book-locations/ issues/ returns/
+│   │   transfers/ members/ fines/ audit-logs/ settings/ notifications/
+│   └── routes/            -- REST at /api/v1/*
 ├── package.json  tsconfig.json  .env.example  Dockerfile  README.md
+└── API.md                 -- endpoint reference
 ```
 
-- Auth: bcrypt (12 rounds), JWT access (15m) + refresh (7d, rotated), role-based guard, `express-rate-limit` on auth routes.
-- Security: helmet, cors allowlist, `express-validator`/zod, parameterized queries only (SQL injection safe), file upload via multer with mime/size checks storing under `server/uploads/books/`.
-- Pagination / server-side search on all list endpoints, indexes in schema, prepared statements.
-- README with `mysql -u root -p < sql/001_schema.sql` + `npm i && npm run dev` instructions.
+Every table gets: PK, FKs, indexes on FKs + search columns, unique constraints (ISBN, email, code), `created_at`, `updated_at`, `deleted_at` (soft delete), `created_by`, `updated_by`.
+
+Auth: bcrypt (12 rounds), JWT access (15 min) + refresh (7 d, rotated), role-guard middleware, `express-rate-limit` on `/auth/*`.
+Security: helmet, cors allowlist, parameterized queries only (no string concat), zod validation on every body/query, multer for uploads (mime + 2 MB size check, saved to `server/uploads/books/`).
 
 ---
 
-## Out of scope / explicit non-goals
+## What I need from you before starting
 
-- No UI redesign, no theme/color/sidebar/dashboard-layout changes.
-- No cutover of the live app to MySQL — MySQL bundle is standalone.
-- Storage uploads use Lovable Cloud Storage (Workers have no local FS); the MySQL Express bundle uses local `server/uploads/books` as you specified.
+1. **Go / no-go on all three phases.** Reply "go" and I run Phase 1 → 2 → 3 back-to-back, stopping only if a migration or approval-gated tool needs your OK. If you'd rather I stop between phases for review, say "phase by phase".
+2. **Auto-create missing masters during Excel import?** Default = yes (checkbox on, user can uncheck). Say "no" to make unknown Category/Author/etc. hard-fail the row instead.
+3. **MySQL backend language: TypeScript (default) or plain JavaScript?** TS gives typing and better DX; JS is easier to run without a build step.
 
----
-
-## Order of execution (single continuous run)
-
-1. Milestone 1 fixes (small files, parallel edits).
-2. Milestone 2 Postgres migration + new routes.
-3. Milestone 3 audit fields migration + helper wiring.
-4. Milestone 4 generate `backend-mysql/` bundle.
-5. Build / typecheck; fix any errors.
-
-Rough size: ~30-40 files touched or created. This is a large single turn — I will run continuously and only stop on approval-gated tools (DB migrations).
-
-Reply **"go"** to start, or tell me to trim any milestone first.
+Reply with any of: `go`, `phase by phase`, or answers to 2/3. Anything you don't answer, I'll use the defaults above.

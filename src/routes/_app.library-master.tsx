@@ -30,6 +30,7 @@ import { cn } from "@/lib/utils";
 import { logActivity } from "@/lib/helpers";
 import { handleFormKeyDown, validators } from "@/lib/form-utils";
 import { toast } from "sonner";
+import { LocationHierarchy } from "@/components/library/LocationHierarchy";
 
 export const Route = createFileRoute("/_app/library-master")({
   head: () => ({ meta: [{ title: "Library Master — School withleo" }] }),
@@ -174,6 +175,15 @@ function LibraryMaster() {
         ))}
       </div>
 
+      {active === "location" ? (
+        <div className="rounded-xl border bg-card p-5 shadow-[var(--shadow-card)]">
+          <h3 className="mb-4 font-semibold">Location Hierarchy</h3>
+          <p className="mb-4 text-xs text-muted-foreground">
+            Campus → Building → Floor → Room → Almirah → Rack → Shelf. Click any item to drill into its children.
+          </p>
+          <LocationHierarchy />
+        </div>
+      ) : (
       <div className="rounded-xl border bg-card p-5 shadow-[var(--shadow-card)]">
         <h3 className="mb-4 font-semibold">{label} Master</h3>
         <form
@@ -282,6 +292,7 @@ function LibraryMaster() {
           </Table>
         </div>
       </div>
+      )}
 
       <AlertDialog open={!!deleteId} onOpenChange={(o) => !o && setDeleteId(null)}>
         <AlertDialogContent>
