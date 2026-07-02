@@ -30,6 +30,7 @@ import { cn } from "@/lib/utils";
 import { logActivity } from "@/lib/helpers";
 import { handleFormKeyDown, validators } from "@/lib/form-utils";
 import { toast } from "sonner";
+import { LocationHierarchy } from "@/components/library/LocationHierarchy";
 
 export const Route = createFileRoute("/_app/library-master")({
   head: () => ({ meta: [{ title: "Library Master — School withleo" }] }),
