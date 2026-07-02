@@ -147,7 +147,7 @@ function validateRow(raw: RawExcelRow, rowNo: number): ParsedRow {
     copies: Math.max(1, Math.floor(copiesN)),
     location: str(raw["Location"]),
     rack: str(raw["Rack"]),
-    shelf: str(raw["Shelf"]),
+
     errors,
     status: errors.length ? "invalid" : "valid",
   };
