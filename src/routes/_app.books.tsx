@@ -98,10 +98,10 @@ const empty = {
   subject: "",
   location: "",
   status: "",
-  no_of_pages: "0",
+  no_of_pages: "",
   no_of_copies: "1",
-  price: "0",
-  mrp: "0",
+  price: "",
+  mrp: "",
   content: "",
   cover_image: "",
   purchase_date: todayISO(),
@@ -172,17 +172,16 @@ function BookMaster() {
     e.no_of_copies =
       validators.required(form.no_of_copies, "Copies") ||
       validators.greaterThanZero(form.no_of_copies, "Copies");
-    e.price =
-      validators.required(form.price, "Price") ||
-      validators.positiveNumber(form.price, "Price");
-    e.mrp =
-      validators.required(form.mrp, "MRP") ||
-      validators.positiveNumber(form.mrp, "MRP");
-    e.cover_image =
-      validators.required(form.cover_image, "Cover Image") ||
-      validators.url(form.cover_image);
-    e.content = validators.required(form.content, "Description");
-    e.no_of_pages = validators.positiveInt(form.no_of_pages, "Pages");
+    // Price/MRP: optional numeric, must be >= 0 when provided.
+    e.price = validators.positiveNumber(form.price, "Price");
+    e.mrp = validators.positiveNumber(form.mrp, "MRP");
+    e.cover_image = form.cover_image ? validators.url(form.cover_image) : null;
+    e.content = null;
+    // Pages: optional integer, must be > 0 when provided.
+    e.no_of_pages = form.no_of_pages
+      ? validators.positiveInt(form.no_of_pages, "Pages") ||
+        (Number(form.no_of_pages) > 0 ? null : "Pages must be greater than zero.")
+      : null;
     return e;
   }, [form]);
 
@@ -235,10 +234,10 @@ function BookMaster() {
       subject: form.subject || null,
       location: form.location || null,
       status: form.status || null,
-      no_of_pages: parseInt(form.no_of_pages) || 0,
+      no_of_pages: form.no_of_pages ? parseInt(form.no_of_pages) : null,
       no_of_copies: copies,
-      price: parseFloat(form.price) || 0,
-      mrp: parseFloat(form.mrp) || 0,
+      price: form.price === "" ? null : parseFloat(form.price),
+      mrp: form.mrp === "" ? null : parseFloat(form.mrp),
       content: form.content.trim() || null,
       cover_image: form.cover_image.trim() || null,
       purchase_date: form.purchase_date || null,
@@ -285,10 +284,10 @@ function BookMaster() {
       subject: b.subject ?? "",
       location: b.location ?? "",
       status: b.status ?? "",
-      no_of_pages: String(b.no_of_pages ?? 0),
+      no_of_pages: b.no_of_pages != null ? String(b.no_of_pages) : "",
       no_of_copies: String(b.no_of_copies),
-      price: String(b.price ?? 0),
-      mrp: String(b.mrp ?? 0),
+      price: b.price != null ? String(b.price) : "",
+      mrp: b.mrp != null ? String(b.mrp) : "",
       content: b.content ?? "",
       cover_image: b.cover_image ?? "",
       purchase_date: b.purchase_date ?? todayISO(),
