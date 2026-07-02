@@ -174,14 +174,25 @@ function IssueBook() {
 
       <div className="rounded-xl border bg-card p-5 shadow-[var(--shadow-card)]" onKeyDown={handleFormKeyDown as never}>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <FormField label="Issue Date" required error={touched.issueDate ? issueDateError : null}>
+          <FormField
+            label="Issue Date"
+            required
+            error={touched.issueDate ? issueDateError || regDateError : null}
+            hint={
+              memberRegDate
+                ? `Member registered on ${fmtDate(memberRegDate)}`
+                : undefined
+            }
+          >
             <Input
               type="date"
               value={issueDate}
+              min={memberRegDate || undefined}
               onChange={(e) => setIssueDate(e.target.value)}
               onBlur={() => setTouched((t) => ({ ...t, issueDate: true }))}
             />
           </FormField>
+
           <FormField label="Member" required error={touched.memberId ? memberError : null}>
             <Select
               value={memberId || undefined}
