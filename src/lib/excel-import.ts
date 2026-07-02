@@ -180,7 +180,7 @@ export function markDuplicatesInDb(
       return {
         ...r,
         status: "duplicate",
-        errors: [...r.errors, "ISBN already exists in database"],
+        errors: [...r.errors, "Duplicate entry. This book already exists."],
       };
     }
     return r;
