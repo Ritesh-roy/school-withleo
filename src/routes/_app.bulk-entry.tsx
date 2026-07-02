@@ -360,6 +360,11 @@ function BulkEntry() {
       <div className="mt-6">
         <DataTable columns={columns} data={books} searchPlaceholder="Search books…" />
       </div>
+        </TabsContent>
+        <TabsContent value="excel" className="mt-4">
+          <ExcelImportPanel />
+        </TabsContent>
+      </Tabs>
 
       {/* View dialog */}
       <Dialog open={!!viewRow} onOpenChange={(o) => !o && setViewRow(null)}>
