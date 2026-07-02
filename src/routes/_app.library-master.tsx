@@ -175,6 +175,15 @@ function LibraryMaster() {
         ))}
       </div>
 
+      {active === "location" ? (
+        <div className="rounded-xl border bg-card p-5 shadow-[var(--shadow-card)]">
+          <h3 className="mb-4 font-semibold">Location Hierarchy</h3>
+          <p className="mb-4 text-xs text-muted-foreground">
+            Campus → Building → Floor → Room → Almirah → Rack → Shelf. Click any item to drill into its children.
+          </p>
+          <LocationHierarchy />
+        </div>
+      ) : (
       <div className="rounded-xl border bg-card p-5 shadow-[var(--shadow-card)]">
         <h3 className="mb-4 font-semibold">{label} Master</h3>
         <form
