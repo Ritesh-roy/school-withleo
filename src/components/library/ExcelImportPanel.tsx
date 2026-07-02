@@ -184,12 +184,10 @@ export function ExcelImportPanel() {
           edition: r.edition || null,
           price: r.price ?? null,
           mrp: r.mrp ?? null,
-          pages: r.pages ?? null,
+          no_of_pages: r.pages ?? null,
           no_of_copies: r.copies,
           available_copies: r.copies,
-          location: r.location || null,
-          rack: r.rack || null,
-          shelf: r.shelf || null,
+          location: [r.location, r.rack, r.shelf].filter(Boolean).join(" / ") || null,
           purchase_date: todayISO(),
         }));
         const { error } = await supabase.from("books").insert(payload);
