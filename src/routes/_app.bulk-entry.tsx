@@ -240,9 +240,15 @@ function BulkEntry() {
     <div>
       <PageHeader
         title="Bulk Entry"
-        description="Quickly add many books in succession"
+        description="Quickly add many books in succession, or import from Excel"
         icon={<Boxes className="h-6 w-6 text-primary" />}
       />
+      <Tabs defaultValue="manual" className="mb-4">
+        <TabsList>
+          <TabsTrigger value="manual">Manual Entry</TabsTrigger>
+          <TabsTrigger value="excel">Import Excel</TabsTrigger>
+        </TabsList>
+        <TabsContent value="manual" className="mt-4">
       <form
         className="rounded-xl border bg-card p-5 shadow-[var(--shadow-card)]"
         noValidate
