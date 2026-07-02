@@ -105,7 +105,7 @@ interface Node {
 interface InventoryRow {
   rack_id: string;
   capacity: number;
-  used: number;
+  current_count: number;
   available: number;
 }
 
