@@ -62,11 +62,12 @@ function IssueBook() {
     queryFn: async () => {
       const { data } = await supabase
         .from("members")
-        .select("id,member_no,name")
+        .select("id,member_no,name,membership_date")
         .order("name");
       return data ?? [];
     },
   });
+
 
   const { data: books = [] } = useQuery({
     queryKey: ["books-available"],
