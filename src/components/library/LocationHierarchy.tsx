@@ -207,7 +207,7 @@ export function LocationHierarchy() {
       if (parentFk) payload[parentFk] = parentId;
 
       if (editing.id) {
-        const { error } = await supabase
+        const { error } = await (supabase as any)
           .from(TABLE[level])
           .update(payload)
           .eq("id", editing.id);
