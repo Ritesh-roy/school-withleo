@@ -1,9 +1,11 @@
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
-import { BookOpen, Loader2 } from "lucide-react";
+import { Loader2, Eye, EyeOff, AlertCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth, ROLE_LABELS, type AppRole } from "@/lib/auth";
 import { seedDemoUsers } from "@/lib/seed-users.functions";
+import { AppLogo } from "@/components/library/AppLogo";
+import { APP_NAME, APP_TAGLINE } from "@/lib/branding";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -26,10 +28,10 @@ import { toast } from "sonner";
 export const Route = createFileRoute("/auth")({
   head: () => ({
     meta: [
-      { title: "Sign In — Smart School Library ERP" },
+      { title: `Sign In — ${APP_NAME} Library` },
       {
         name: "description",
-        content: "Secure login for the Smart School Library Management System.",
+        content: "Secure login for the School withleo Library Management System.",
       },
     ],
   }),
@@ -41,6 +43,10 @@ function AuthPage() {
   const { user, loading } = useAuth();
   const [tab, setTab] = useState("login");
   const [busy, setBusy] = useState(false);
+  const [loginError, setLoginError] = useState<string | null>(null);
+  const [signupError, setSignupError] = useState<string | null>(null);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showSuPassword, setShowSuPassword] = useState(false);
   const seededRef = useRef(false);
 
   useEffect(() => {
@@ -69,16 +75,29 @@ function AuthPage() {
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     if (busy) return;
-    if (!emailRegex.test(email.trim()))
-      return toast.error("Please enter a valid email address.");
-    if (!password) return toast.error("Password is required.");
+    setLoginError(null);
+    if (!emailRegex.test(email.trim())) {
+      setLoginError("Please enter a valid email address.");
+      return;
+    }
+    if (!password) {
+      setLoginError("Password is required.");
+      return;
+    }
     setBusy(true);
     const { error } = await supabase.auth.signInWithPassword({
       email: email.trim(),
       password,
     });
     setBusy(false);
-    if (error) return toast.error(error.message);
+    if (error) {
+      // Normalize Supabase's raw message to a user-friendly line.
+      const msg = /invalid.*credentials/i.test(error.message)
+        ? "Invalid login credentials. Please check your email and password."
+        : error.message;
+      setLoginError(msg);
+      return;
+    }
     toast.success("Welcome back!");
     navigate({ to: "/dashboard" });
   };
@@ -86,11 +105,12 @@ function AuthPage() {
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
     if (busy) return;
-    if (!name.trim()) return toast.error("Full Name is required.");
+    setSignupError(null);
+    if (!name.trim()) return setSignupError("Full Name is required.");
     if (!emailRegex.test(suEmail.trim()))
-      return toast.error("Please enter a valid email address.");
+      return setSignupError("Please enter a valid email address.");
     if (suPassword.length < 6)
-      return toast.error("Password must be at least 6 characters.");
+      return setSignupError("Password must be at least 6 characters.");
     setBusy(true);
     const { error } = await supabase.auth.signUp({
       email: suEmail.trim(),
@@ -101,14 +121,16 @@ function AuthPage() {
       },
     });
     setBusy(false);
-    if (error) return toast.error(error.message);
+    if (error) return setSignupError(error.message);
     toast.success("Account created! Signing you in…");
     navigate({ to: "/dashboard" });
   };
 
   const handleForgot = async () => {
-    if (!emailRegex.test(email.trim()))
-      return toast.error("Please enter a valid email address first.");
+    if (!emailRegex.test(email.trim())) {
+      setLoginError("Please enter a valid email address first.");
+      return;
+    }
     const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
       redirectTo: `${window.location.origin}/reset-password`,
     });
@@ -120,12 +142,12 @@ function AuthPage() {
     <div className="grid min-h-screen lg:grid-cols-2">
       <div className="relative hidden flex-col justify-between bg-topbar p-12 text-topbar-foreground lg:flex">
         <div className="flex items-center gap-3">
-          <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-white/15">
-            <BookOpen className="h-6 w-6" />
+          <div className="flex h-11 w-11 items-center justify-center overflow-hidden rounded-lg bg-white/15 p-1">
+            <AppLogo className="h-full w-full" />
           </div>
           <div>
-            <p className="text-lg font-bold leading-tight">School withleo</p>
-            <p className="text-sm text-topbar-foreground/70">Library Management</p>
+            <p className="text-lg font-bold leading-tight">{APP_NAME}</p>
+            <p className="text-sm text-topbar-foreground/70">{APP_TAGLINE}</p>
           </div>
         </div>
         <div>
@@ -141,17 +163,26 @@ function AuthPage() {
           </p>
         </div>
         <p className="text-sm text-topbar-foreground/60">
-          © {new Date().getFullYear()} School withleo
+          © {new Date().getFullYear()} {APP_NAME}
         </p>
       </div>
 
       <div className="flex items-center justify-center bg-background p-6">
         <div className="w-full max-w-md">
           <div className="mb-6 flex items-center gap-2 lg:hidden">
-            <BookOpen className="h-6 w-6 text-primary" />
-            <span className="text-lg font-bold">School withleo</span>
+            <div className="h-8 w-8 overflow-hidden rounded-md">
+              <AppLogo className="h-full w-full" />
+            </div>
+            <span className="text-lg font-bold">{APP_NAME}</span>
           </div>
-          <Tabs value={tab} onValueChange={setTab}>
+          <Tabs
+            value={tab}
+            onValueChange={(v) => {
+              setTab(v);
+              setLoginError(null);
+              setSignupError(null);
+            }}
+          >
             <TabsList className="grid w-full grid-cols-2">
               <TabsTrigger value="login">Sign In</TabsTrigger>
               <TabsTrigger value="signup">Create Account</TabsTrigger>
@@ -159,6 +190,17 @@ function AuthPage() {
 
             <TabsContent value="login">
               <form onSubmit={handleLogin} className="space-y-4 pt-4" noValidate>
+                {/* Inline error banner directly above the fields */}
+                {loginError && (
+                  <div
+                    role="alert"
+                    aria-live="polite"
+                    className="flex items-start gap-2 rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive"
+                  >
+                    <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+                    <span>{loginError}</span>
+                  </div>
+                )}
                 <div className="space-y-2">
                   <Label htmlFor="email">
                     Email <span className="text-destructive">*</span>
@@ -168,8 +210,12 @@ function AuthPage() {
                     type="email"
                     autoComplete="email"
                     value={email}
-                    onChange={(e) => setEmail(e.target.value)}
+                    onChange={(e) => {
+                      setEmail(e.target.value);
+                      if (loginError) setLoginError(null);
+                    }}
                     placeholder="Enter email address"
+                    aria-invalid={!!loginError}
                     required
                   />
                 </div>
@@ -177,15 +223,36 @@ function AuthPage() {
                   <Label htmlFor="password">
                     Password <span className="text-destructive">*</span>
                   </Label>
-                  <Input
-                    id="password"
-                    type="password"
-                    autoComplete="current-password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    placeholder="Enter password"
-                    required
-                  />
+                  <div className="relative">
+                    <Input
+                      id="password"
+                      type={showPassword ? "text" : "password"}
+                      autoComplete="current-password"
+                      value={password}
+                      onChange={(e) => {
+                        setPassword(e.target.value);
+                        if (loginError) setLoginError(null);
+                      }}
+                      placeholder="Enter password"
+                      className="pr-10"
+                      aria-invalid={!!loginError}
+                      required
+                    />
+                    <button
+                      type="button"
+                      tabIndex={-1}
+                      onClick={() => setShowPassword((v) => !v)}
+                      aria-label={showPassword ? "Hide password" : "Show password"}
+                      aria-pressed={showPassword}
+                      className="absolute inset-y-0 right-0 flex items-center px-3 text-muted-foreground hover:text-foreground"
+                    >
+                      {showPassword ? (
+                        <EyeOff className="h-4 w-4" />
+                      ) : (
+                        <Eye className="h-4 w-4" />
+                      )}
+                    </button>
+                  </div>
                 </div>
                 <div className="flex items-center justify-between">
                   <label className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -212,6 +279,16 @@ function AuthPage() {
 
             <TabsContent value="signup">
               <form onSubmit={handleSignup} className="space-y-4 pt-4" noValidate>
+                {signupError && (
+                  <div
+                    role="alert"
+                    aria-live="polite"
+                    className="flex items-start gap-2 rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive"
+                  >
+                    <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+                    <span>{signupError}</span>
+                  </div>
+                )}
                 <div className="space-y-2">
                   <Label htmlFor="name">
                     Full Name <span className="text-destructive">*</span>
@@ -242,15 +319,32 @@ function AuthPage() {
                   <Label htmlFor="su-password">
                     Password <span className="text-destructive">*</span>
                   </Label>
-                  <Input
-                    id="su-password"
-                    type="password"
-                    minLength={6}
-                    value={suPassword}
-                    onChange={(e) => setSuPassword(e.target.value)}
-                    placeholder="Enter password (min 6 characters)"
-                    required
-                  />
+                  <div className="relative">
+                    <Input
+                      id="su-password"
+                      type={showSuPassword ? "text" : "password"}
+                      minLength={6}
+                      value={suPassword}
+                      onChange={(e) => setSuPassword(e.target.value)}
+                      placeholder="Enter password (min 6 characters)"
+                      className="pr-10"
+                      required
+                    />
+                    <button
+                      type="button"
+                      tabIndex={-1}
+                      onClick={() => setShowSuPassword((v) => !v)}
+                      aria-label={showSuPassword ? "Hide password" : "Show password"}
+                      aria-pressed={showSuPassword}
+                      className="absolute inset-y-0 right-0 flex items-center px-3 text-muted-foreground hover:text-foreground"
+                    >
+                      {showSuPassword ? (
+                        <EyeOff className="h-4 w-4" />
+                      ) : (
+                        <Eye className="h-4 w-4" />
+                      )}
+                    </button>
+                  </div>
                 </div>
                 <div className="space-y-2">
                   <Label>Role</Label>
