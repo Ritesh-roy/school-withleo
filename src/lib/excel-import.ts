@@ -93,7 +93,7 @@ export function downloadSampleTemplate() {
       Copies: 5,
       Location: "Main Campus",
       Rack: "R2",
-      Shelf: "S1",
+
     },
   ];
   const ws = XLSX.utils.json_to_sheet(sample, { header: [...EXCEL_COLUMNS] });
