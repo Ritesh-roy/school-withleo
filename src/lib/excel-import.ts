@@ -43,7 +43,7 @@ export interface ParsedRow {
   copies: number;
   location: string;
   rack: string;
-  shelf: string;
+
   errors: string[];
   status: "valid" | "invalid" | "duplicate";
 }
