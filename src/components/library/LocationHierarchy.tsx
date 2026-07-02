@@ -5,8 +5,9 @@ import {
   Loader2,
   Pencil,
   Plus,
-  RotateCcw,
+  Power,
   Save,
+  Search,
   Trash2,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -15,6 +16,13 @@ import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { FormField } from "@/components/library/FormField";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -30,8 +38,9 @@ import { toast } from "sonner";
 import { logActivity } from "@/lib/helpers";
 
 // 7-level hierarchy: Campus → Building → Floor → Room → Almirah → Rack → Shelf.
-// Uses the existing Postgres tables. UI is a column-cascading picker with
-// per-level CRUD and rack capacity/usage display from the rack_inventory view.
+// Full CRUD, cascading load, per-column search, activate/deactivate toggle and
+// per-parent duplicate-name validation. Persists to the Lovable Cloud backend
+// (Postgres with the same tables/FKs as the bundled MySQL schema).
 
 type Level =
   | "campus"
@@ -120,8 +129,17 @@ export function LocationHierarchy() {
     rack: null,
     shelf: null,
   });
+  const [search, setSearch] = useState<Record<Level, string>>({
+    campus: "",
+    building: "",
+    floor: "",
+    room: "",
+    almirah: "",
+    rack: "",
+    shelf: "",
+  });
 
-  const [editing, setEditing] = useState<{ level: Level; id: string | null } | null>(null);
+  const [dialog, setDialog] = useState<{ level: Level; id: string | null } | null>(null);
   const [name, setName] = useState("");
   const [code, setCode] = useState("");
   const [capacity, setCapacity] = useState("");
@@ -157,15 +175,19 @@ export function LocationHierarchy() {
 
   const selectLevel = (level: Level, id: string | null) => {
     const next = { ...selected, [level]: id };
-    // Clear descendants when parent changes.
     const idx = LEVELS.indexOf(level);
     for (let i = idx + 1; i < LEVELS.length; i++) next[LEVELS[i]] = null;
     setSelected(next);
-    resetForm(level);
   };
 
-  const resetForm = (level?: Level) => {
-    setEditing(level ? { level, id: null } : null);
+  const openAdd = (level: Level) => {
+    // Ensure parent chain is selected before allowing add.
+    const p = PARENT_LEVEL[level];
+    if (p && !selected[p]) {
+      toast.error(`Select a ${LEVEL_LABELS[p]} first`);
+      return;
+    }
+    setDialog({ level, id: null });
     setName("");
     setCode("");
     setCapacity("");
@@ -174,29 +196,47 @@ export function LocationHierarchy() {
   };
 
   const openEdit = (level: Level, node: Node) => {
-    setEditing({ level, id: node.id });
+    setDialog({ level, id: node.id });
     setName(node.name);
     setCode(node.code ?? "");
     setCapacity(node.capacity != null ? String(node.capacity) : "");
-    setPosition(node.position != null ? String(node.position) : node.level_no != null ? String(node.level_no) : "");
+    setPosition(
+      node.position != null
+        ? String(node.position)
+        : node.level_no != null
+          ? String(node.level_no)
+          : "",
+    );
     setStatus(node.status);
   };
 
+  const closeDialog = () => setDialog(null);
+
   const save = async () => {
-    if (!editing) return;
+    if (!dialog) return;
     const trimmed = name.trim();
     if (!trimmed) return toast.error("Name is required");
-    const level = editing.level;
+    const level = dialog.level;
     const parentFk = PARENT_FK[level];
     const parentId = parentFk ? selected[PARENT_LEVEL[level]!] : null;
     if (parentFk && !parentId)
       return toast.error(`Select a ${LEVEL_LABELS[PARENT_LEVEL[level]!]} first`);
+
+    // Duplicate check under same parent
+    const siblings = qc.getQueryData<Node[]>(["loc", level, parentIdFor(level)]) ?? [];
+    const dup = siblings.find(
+      (n) => n.name.trim().toLowerCase() === trimmed.toLowerCase() && n.id !== dialog.id,
+    );
+    if (dup)
+      return toast.error(
+        `${LEVEL_LABELS[level]} "${trimmed}" already exists under this ${
+          PARENT_LEVEL[level] ? LEVEL_LABELS[PARENT_LEVEL[level]!] : "root"
+        }.`,
+      );
+
     setSaving(true);
     try {
-      const payload: Record<string, unknown> = {
-        name: trimmed,
-        status,
-      };
+      const payload: Record<string, unknown> = { name: trimmed, status };
       if (level !== "shelf") payload.code = code.trim() || null;
       if (level === "rack")
         payload.capacity = capacity ? Math.max(0, parseInt(capacity)) : 0;
@@ -206,11 +246,11 @@ export function LocationHierarchy() {
         payload.position = position ? parseInt(position) : null;
       if (parentFk) payload[parentFk] = parentId;
 
-      if (editing.id) {
+      if (dialog.id) {
         const { error } = await (supabase as any)
           .from(TABLE[level])
           .update(payload)
-          .eq("id", editing.id);
+          .eq("id", dialog.id);
         if (error) throw error;
         toast.success(`${LEVEL_LABELS[level]} updated`);
         logActivity(`Update ${level}`, trimmed);
@@ -220,7 +260,7 @@ export function LocationHierarchy() {
         toast.success(`${LEVEL_LABELS[level]} added`);
         logActivity(`Add ${level}`, trimmed);
       }
-      resetForm(level);
+      closeDialog();
       qc.invalidateQueries({ queryKey: ["loc", level] });
       qc.invalidateQueries({ queryKey: ["rack-inventory"] });
     } catch (e) {
@@ -228,6 +268,16 @@ export function LocationHierarchy() {
     } finally {
       setSaving(false);
     }
+  };
+
+  const toggleStatus = async (level: Level, node: Node) => {
+    const { error } = await (supabase as any)
+      .from(TABLE[level])
+      .update({ status: !node.status })
+      .eq("id", node.id);
+    if (error) return toast.error(error.message);
+    toast.success(`${LEVEL_LABELS[level]} ${!node.status ? "activated" : "deactivated"}`);
+    qc.invalidateQueries({ queryKey: ["loc", level] });
   };
 
   const doDelete = async () => {
@@ -253,7 +303,7 @@ export function LocationHierarchy() {
   return (
     <div className="space-y-4">
       <div className="rounded-lg border bg-muted/30 p-3">
-        <div className="mb-2 flex items-center gap-1 text-xs text-muted-foreground">
+        <div className="flex flex-wrap items-center gap-1 text-xs text-muted-foreground">
           <span className="font-medium text-foreground">Path:</span>
           {breadcrumb.length === 0 && <span>Select a Campus to begin</span>}
           {breadcrumb.map((b, i) => (
@@ -274,10 +324,13 @@ export function LocationHierarchy() {
               level={level}
               parentId={parentIdFor(level)}
               selectedId={selected[level]}
+              search={search[level]}
+              onSearch={(v) => setSearch((s) => ({ ...s, [level]: v }))}
               onSelect={(id) => selectLevel(level, id)}
-              onNew={() => resetForm(level)}
+              onAdd={() => openAdd(level)}
               onEdit={(n) => openEdit(level, n)}
               onDelete={(n) => setDeleteTarget({ level, id: n.id, name: n.name })}
+              onToggle={(n) => toggleStatus(level, n)}
               inventoryByRack={inventoryByRack}
             />
           ) : (
@@ -294,91 +347,102 @@ export function LocationHierarchy() {
         )}
       </div>
 
-      {editing && (
-        <div className="rounded-xl border bg-card p-4 shadow-[var(--shadow-card)]">
-          <h4 className="mb-3 text-sm font-semibold">
-            {editing.id ? "Edit" : "Add"} {LEVEL_LABELS[editing.level]}
-          </h4>
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            <FormField label="Name" required>
-              <Input
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder={`${LEVEL_LABELS[editing.level]} name`}
-                maxLength={80}
-              />
-            </FormField>
-            {editing.level !== "shelf" && (
-              <FormField label="Code">
+      <Dialog open={!!dialog} onOpenChange={(o) => !o && closeDialog()}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>
+              {dialog?.id ? "Edit" : "Add"} {dialog ? LEVEL_LABELS[dialog.level] : ""}
+            </DialogTitle>
+          </DialogHeader>
+          {dialog && (
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                save();
+              }}
+              className="grid gap-3 sm:grid-cols-2"
+            >
+              <FormField label="Name" required>
                 <Input
-                  value={code}
-                  onChange={(e) => setCode(e.target.value)}
-                  placeholder="Optional code"
-                  maxLength={30}
+                  autoFocus
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder={`${LEVEL_LABELS[dialog.level]} name`}
+                  maxLength={80}
                 />
               </FormField>
-            )}
-            {editing.level === "floor" && (
-              <FormField label="Floor Level">
-                <Input
-                  value={position}
-                  onChange={(e) =>
-                    setPosition(e.target.value.replace(/[^\d]/g, "").slice(0, 3))
-                  }
-                  placeholder="1, 2, 3…"
-                  inputMode="numeric"
-                />
-              </FormField>
-            )}
-            {editing.level === "rack" && (
-              <FormField label="Capacity">
-                <Input
-                  value={capacity}
-                  onChange={(e) =>
-                    setCapacity(e.target.value.replace(/[^\d]/g, "").slice(0, 6))
-                  }
-                  placeholder="Max books"
-                  inputMode="numeric"
-                />
-              </FormField>
-            )}
-            {editing.level === "shelf" && (
-              <FormField label="Position">
-                <Input
-                  value={position}
-                  onChange={(e) =>
-                    setPosition(e.target.value.replace(/[^\d]/g, "").slice(0, 4))
-                  }
-                  placeholder="1, 2, 3…"
-                  inputMode="numeric"
-                />
-              </FormField>
-            )}
-            <div className="flex items-end gap-2">
-              <Label className="flex items-center gap-2 text-xs">
-                <Checkbox
-                  checked={status}
-                  onCheckedChange={(v) => setStatus(Boolean(v))}
-                />
-                Active
-              </Label>
-            </div>
-          </div>
-          <div className="mt-3 flex justify-end gap-2">
-            <Button variant="outline" type="button" onClick={() => resetForm()} disabled={saving}>
-              <RotateCcw className="mr-2 h-4 w-4" /> Cancel
-            </Button>
-            <Button onClick={save} disabled={saving || !name.trim()}>
-              {saving ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : (
-                <Save className="mr-2 h-4 w-4" />
+              {dialog.level !== "shelf" && (
+                <FormField label="Code">
+                  <Input
+                    value={code}
+                    onChange={(e) => setCode(e.target.value)}
+                    placeholder="Optional code"
+                    maxLength={30}
+                  />
+                </FormField>
               )}
-              {editing.id ? "Update" : "Save"}
-            </Button>
-          </div>
-        </div>
-      )}
+              {dialog.level === "floor" && (
+                <FormField label="Floor Level">
+                  <Input
+                    value={position}
+                    onChange={(e) =>
+                      setPosition(e.target.value.replace(/[^\d]/g, "").slice(0, 3))
+                    }
+                    placeholder="1, 2, 3…"
+                    inputMode="numeric"
+                  />
+                </FormField>
+              )}
+              {dialog.level === "rack" && (
+                <FormField label="Capacity">
+                  <Input
+                    value={capacity}
+                    onChange={(e) =>
+                      setCapacity(e.target.value.replace(/[^\d]/g, "").slice(0, 6))
+                    }
+                    placeholder="Max books"
+                    inputMode="numeric"
+                  />
+                </FormField>
+              )}
+              {dialog.level === "shelf" && (
+                <FormField label="Position">
+                  <Input
+                    value={position}
+                    onChange={(e) =>
+                      setPosition(e.target.value.replace(/[^\d]/g, "").slice(0, 4))
+                    }
+                    placeholder="1, 2, 3…"
+                    inputMode="numeric"
+                  />
+                </FormField>
+              )}
+              <div className="flex items-end">
+                <Label className="flex items-center gap-2 text-sm">
+                  <Checkbox
+                    checked={status}
+                    onCheckedChange={(v) => setStatus(Boolean(v))}
+                  />
+                  Active
+                </Label>
+              </div>
+              <DialogFooter className="sm:col-span-2">
+                <Button type="button" variant="outline" onClick={closeDialog} disabled={saving}>
+                  Cancel
+                </Button>
+                <Button type="submit" disabled={saving || !name.trim()}>
+                  {saving ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <Save className="mr-2 h-4 w-4" />
+                  )}
+                  {dialog.id ? "Update" : "Save"}
+                </Button>
+              </DialogFooter>
+            </form>
+          )}
+        </DialogContent>
+      </Dialog>
 
       <AlertDialog open={!!deleteTarget} onOpenChange={(o) => !o && setDeleteTarget(null)}>
         <AlertDialogContent>
@@ -404,19 +468,25 @@ function LevelColumn({
   level,
   parentId,
   selectedId,
+  search,
+  onSearch,
   onSelect,
-  onNew,
+  onAdd,
   onEdit,
   onDelete,
+  onToggle,
   inventoryByRack,
 }: {
   level: Level;
   parentId: string | null;
   selectedId: string | null;
+  search: string;
+  onSearch: (v: string) => void;
   onSelect: (id: string | null) => void;
-  onNew: () => void;
+  onAdd: () => void;
   onEdit: (n: Node) => void;
   onDelete: (n: Node) => void;
+  onToggle: (n: Node) => void;
   inventoryByRack: Record<string, InventoryRow>;
 }) {
   const { data = [], isLoading } = useQuery<Node[]>({
@@ -436,27 +506,49 @@ function LevelColumn({
     enabled: level === "campus" || (!!parentId && parentId !== "root"),
   });
 
+  const filtered = search
+    ? data.filter((n) => n.name.toLowerCase().includes(search.toLowerCase()))
+    : data;
+
   return (
     <div className="rounded-lg border bg-card">
       <div className="flex items-center justify-between border-b p-2">
         <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
           {LEVEL_LABELS[level]}
         </span>
-        <Button variant="ghost" size="sm" className="h-6 px-2" onClick={onNew}>
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          className="h-6 px-2"
+          onClick={onAdd}
+          aria-label={`Add ${LEVEL_LABELS[level]}`}
+        >
           <Plus className="h-3 w-3" />
         </Button>
+      </div>
+      <div className="border-b p-1.5">
+        <div className="relative">
+          <Search className="pointer-events-none absolute left-2 top-1/2 h-3 w-3 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            value={search}
+            onChange={(e) => onSearch(e.target.value)}
+            placeholder="Search…"
+            className="h-7 pl-6 text-xs"
+          />
+        </div>
       </div>
       <div className="max-h-[280px] overflow-y-auto p-1">
         {isLoading ? (
           <div className="flex justify-center py-4">
             <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
           </div>
-        ) : data.length === 0 ? (
+        ) : filtered.length === 0 ? (
           <p className="p-2 text-center text-[11px] text-muted-foreground">
-            Empty — click + to add
+            {data.length === 0 ? "Empty — click + to add" : "No matches"}
           </p>
         ) : (
-          data.map((n) => {
+          filtered.map((n) => {
             const inv = level === "rack" ? inventoryByRack[n.id] : null;
             return (
               <div
@@ -464,13 +556,22 @@ function LevelColumn({
                 className={cn(
                   "group flex items-center gap-1 rounded px-2 py-1.5 text-xs hover:bg-muted",
                   selectedId === n.id && "bg-primary/10 text-primary",
+                  !n.status && "opacity-60",
                 )}
               >
                 <button
+                  type="button"
                   onClick={() => onSelect(n.id)}
                   className="flex-1 truncate text-left"
                 >
-                  <div className="truncate font-medium">{n.name}</div>
+                  <div className="flex items-center gap-1 truncate font-medium">
+                    <span className="truncate">{n.name}</span>
+                    {!n.status && (
+                      <span className="rounded bg-muted px-1 text-[9px] uppercase text-muted-foreground">
+                        off
+                      </span>
+                    )}
+                  </div>
                   {inv && (
                     <div className="text-[10px] text-muted-foreground">
                       {inv.current_count}/{inv.capacity} used · {inv.available} free
@@ -483,14 +584,39 @@ function LevelColumn({
                   )}
                 </button>
                 <button
-                  onClick={() => onEdit(n)}
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onToggle(n);
+                  }}
+                  className="opacity-0 transition group-hover:opacity-100"
+                  aria-label={n.status ? "Deactivate" : "Activate"}
+                  title={n.status ? "Deactivate" : "Activate"}
+                >
+                  <Power
+                    className={cn(
+                      "h-3 w-3",
+                      n.status ? "text-emerald-500" : "text-muted-foreground",
+                    )}
+                  />
+                </button>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onEdit(n);
+                  }}
                   className="opacity-0 transition group-hover:opacity-100"
                   aria-label="Edit"
                 >
                   <Pencil className="h-3 w-3 text-muted-foreground hover:text-primary" />
                 </button>
                 <button
-                  onClick={() => onDelete(n)}
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onDelete(n);
+                  }}
                   className="opacity-0 transition group-hover:opacity-100"
                   aria-label="Delete"
                 >
