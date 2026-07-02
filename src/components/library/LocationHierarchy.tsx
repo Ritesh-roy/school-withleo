@@ -215,7 +215,7 @@ export function LocationHierarchy() {
         toast.success(`${LEVEL_LABELS[level]} updated`);
         logActivity(`Update ${level}`, trimmed);
       } else {
-        const { error } = await supabase.from(TABLE[level]).insert(payload);
+        const { error } = await (supabase as any).from(TABLE[level]).insert(payload);
         if (error) throw error;
         toast.success(`${LEVEL_LABELS[level]} added`);
         logActivity(`Add ${level}`, trimmed);
@@ -473,7 +473,7 @@ function LevelColumn({
                   <div className="truncate font-medium">{n.name}</div>
                   {inv && (
                     <div className="text-[10px] text-muted-foreground">
-                      {inv.used}/{inv.capacity} used · {inv.available} free
+                      {inv.current_count}/{inv.capacity} used · {inv.available} free
                     </div>
                   )}
                   {level === "rack" && !inv && n.capacity != null && (
