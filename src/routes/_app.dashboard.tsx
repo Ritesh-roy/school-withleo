@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
   BookOpen,
@@ -24,6 +25,13 @@ import {
   ResponsiveContainer,
   Legend,
 } from "recharts";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { StatCard } from "@/components/library/StatCard";
 import { currency, fmtDate } from "@/lib/helpers";
@@ -32,6 +40,7 @@ export const Route = createFileRoute("/_app/dashboard")({
   head: () => ({ meta: [{ title: "Library Dashboard — School withleo" }] }),
   component: Dashboard,
 });
+
 
 const CHART_COLORS = [
   "#3159b8",
