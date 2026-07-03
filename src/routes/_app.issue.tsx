@@ -54,6 +54,7 @@ interface StagedBook {
 
 function IssueBook() {
   const qc = useQueryClient();
+  const { isAdmin } = useAuth();
   const [issueDate, setIssueDate] = useState(todayISO());
   const [memberId, setMemberId] = useState("");
   const [bookId, setBookId] = useState("");
@@ -61,6 +62,11 @@ function IssueBook() {
   const [staged, setStaged] = useState<StagedBook[]>([]);
   const [touched, setTouched] = useState<Record<string, boolean>>({});
   const [issuing, setIssuing] = useState(false);
+  const [overrideOverdue, setOverrideOverdue] = useState(false);
+  const [overdueDialog, setOverdueDialog] = useState<{
+    count: number;
+    titles: string;
+  } | null>(null);
 
   const { data: settings } = useQuery({
     queryKey: ["settings"],
@@ -87,13 +93,30 @@ function IssueBook() {
     queryFn: async () => {
       const { data } = await supabase
         .from("books")
-        .select("id,collection_no,title,access_type,available_copies")
+        .select("id,collection_no,title,author,isbn,access_type,available_copies")
         .eq("is_deleted", false)
         .gt("available_copies", 0)
         .order("title");
       return data ?? [];
     },
   });
+
+  // Overdue books for the currently selected member (for the banner).
+  const { data: overdueForMember = [] } = useQuery({
+    queryKey: ["overdue-for-member", memberId],
+    enabled: !!memberId,
+    queryFn: async () => {
+      const today = todayISO();
+      const { data } = await supabase
+        .from("book_issues")
+        .select("id,due_date,books(title,collection_no)")
+        .eq("member_id", memberId)
+        .in("status", ["issued", "overdue"])
+        .lt("due_date", today);
+      return data ?? [];
+    },
+  });
+
 
   useEffect(() => {
     const days = settings?.default_issue_days ?? 14;
