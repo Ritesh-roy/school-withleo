@@ -163,42 +163,64 @@ function IssueBook() {
     if (issueDateError) return toast.error(issueDateError);
     if (regDateError) return toast.error(regDateError);
     if (staged.length === 0) return toast.error("Add at least one book.");
+    if (overdueForMember.length > 0 && !(isAdmin && overrideOverdue)) {
+      const titles = overdueForMember
+        .map((o: any) => o.books?.title ?? "(untitled)")
+        .join(", ");
+      setOverdueDialog({ count: overdueForMember.length, titles });
+      return;
+    }
     if (issuing) return;
     setIssuing(true);
 
     try {
-      const rows = staged.map((s) => ({
-        member_id: memberId,
-        book_id: s.book_id,
-        issue_date: issueDate,
-        due_date: s.due_date,
-        status: "issued" as const,
-      }));
-      const { error } = await supabase.from("book_issues").insert(rows);
-      if (error) throw error;
+      let succeeded = 0;
       for (const s of staged) {
-        const b = books.find((x) => x.id === s.book_id);
-        if (b) {
-          await supabase
-            .from("books")
-            .update({ available_copies: Math.max(0, b.available_copies - 1) })
-            .eq("id", s.book_id);
+        const { error } = await supabase.rpc("issue_book_atomic", {
+          _member_id: memberId,
+          _book_id: s.book_id,
+          _issue_date: issueDate,
+          _due_date: s.due_date,
+          _allow_overdue: isAdmin && overrideOverdue,
+        });
+        if (error) {
+          const msg = error.message || "";
+          if (msg.includes("ALREADY_ISSUED"))
+            throw new Error(
+              `#${s.collection_no} — this book copy is already issued to another member.`,
+            );
+          if (msg.includes("BOOK_NOT_FOUND"))
+            throw new Error(`Book "${s.title}" not found.`);
+          if (msg.includes("MEMBER_OVERDUE")) {
+            const parts = msg.split("MEMBER_OVERDUE:")[1] ?? "";
+            const [countStr, ...rest] = parts.split(":");
+            setOverdueDialog({
+              count: Number(countStr) || overdueForMember.length,
+              titles: rest.join(":").trim(),
+            });
+            throw new Error("Member has overdue books — action required.");
+          }
+          throw error;
         }
+        succeeded += 1;
       }
       const member = members.find((m) => m.id === memberId);
-      logActivity("Issue books", `${staged.length} book(s) to ${member?.name}`);
-      toast.success(`${staged.length} book(s) issued successfully`);
+      logActivity("Issue books", `${succeeded} book(s) to ${member?.name}`);
+      toast.success(`${succeeded} book(s) issued successfully`);
       setStaged([]);
       setMemberId("");
+      setOverrideOverdue(false);
       setTouched({});
       qc.invalidateQueries({ queryKey: ["books-available"] });
       qc.invalidateQueries({ queryKey: ["dashboard"] });
+      qc.invalidateQueries({ queryKey: ["overdue-for-member", memberId] });
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Failed to issue books");
     } finally {
       setIssuing(false);
     }
   };
+
 
   return (
     <div>
