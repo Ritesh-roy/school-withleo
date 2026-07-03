@@ -177,6 +177,7 @@ function BookMaster() {
     e.mrp = validators.positiveNumber(form.mrp, "MRP");
     e.cover_image = form.cover_image ? validators.url(form.cover_image) : null;
     e.content = null;
+    // description/content is optional — no validation needed
     // Pages: optional integer, must be > 0 when provided.
     e.no_of_pages = form.no_of_pages
       ? validators.positiveInt(form.no_of_pages, "Pages") ||
