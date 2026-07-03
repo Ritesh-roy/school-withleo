@@ -279,28 +279,42 @@ function IssueBook() {
           </FormField>
         </div>
 
+        {memberId && overdueForMember.length > 0 && (
+          <div className="mt-5 flex items-start gap-3 rounded-lg border border-destructive/40 bg-destructive/10 p-3 text-sm">
+            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-destructive" />
+            <div className="flex-1">
+              <p className="font-semibold text-destructive">
+                {overdueForMember.length} overdue book(s) — issuing is blocked.
+              </p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                {overdueForMember
+                  .map((o: any) => `#${o.books?.collection_no} ${o.books?.title}`)
+                  .join(", ")}
+              </p>
+              {isAdmin && (
+                <label className="mt-2 inline-flex items-center gap-2 text-xs">
+                  <input
+                    type="checkbox"
+                    checked={overrideOverdue}
+                    onChange={(e) => setOverrideOverdue(e.target.checked)}
+                  />
+                  Admin override — issue anyway
+                </label>
+              )}
+            </div>
+          </div>
+        )}
+
         <div className="mt-5 border-t pt-5">
           <p className="mb-3 text-sm font-semibold">Add Books</p>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-[1fr_1fr_auto]">
             <FormField label="Book" required error={touched.bookId && !bookId ? "Please select a book." : null}>
-              <Select value={bookId || undefined} onValueChange={setBookId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select book" />
-                </SelectTrigger>
-                <SelectContent>
-                  {books.length === 0 ? (
-                    <div className="px-2 py-1.5 text-xs text-muted-foreground">
-                      No available books.
-                    </div>
-                  ) : (
-                    books.map((b) => (
-                      <SelectItem key={b.id} value={b.id}>
-                        #{b.collection_no} — {b.title} ({b.available_copies} avail)
-                      </SelectItem>
-                    ))
-                  )}
-                </SelectContent>
-              </Select>
+              <BookCombobox
+                value={bookId}
+                onChange={setBookId}
+                books={books as any}
+                placeholder="Search title, author, ISBN, coll. no…"
+              />
             </FormField>
             <FormField label="Due Date" required>
               <Input
@@ -317,6 +331,7 @@ function IssueBook() {
             </div>
           </div>
         </div>
+
 
         <div className="mt-5 overflow-x-auto rounded-lg border">
           <Table>
