@@ -377,7 +377,16 @@ function IssueBook() {
         </div>
 
         <div className="mt-4 flex justify-end">
-          <Button onClick={issueAll} disabled={issuing || staged.length === 0 || !!memberError || !!regDateError}>
+          <Button
+            onClick={issueAll}
+            disabled={
+              issuing ||
+              staged.length === 0 ||
+              !!memberError ||
+              !!regDateError ||
+              (overdueForMember.length > 0 && !(isAdmin && overrideOverdue))
+            }
+          >
             {issuing ? (
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
             ) : (
@@ -387,6 +396,33 @@ function IssueBook() {
           </Button>
         </div>
       </div>
+
+      <AlertDialog open={!!overdueDialog} onOpenChange={(o) => !o && setOverdueDialog(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Member has overdue books</AlertDialogTitle>
+            <AlertDialogDescription>
+              {overdueDialog?.count} overdue book(s): {overdueDialog?.titles}. Please
+              return them before issuing more.
+              {isAdmin && " Admins can tick the override checkbox to proceed."}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>OK</AlertDialogCancel>
+            {isAdmin && (
+              <AlertDialogAction
+                onClick={() => {
+                  setOverrideOverdue(true);
+                  setOverdueDialog(null);
+                }}
+              >
+                Override & Issue
+              </AlertDialogAction>
+            )}
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
+
