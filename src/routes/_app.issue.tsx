@@ -1,10 +1,12 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowUpRight, Plus, Trash2, BookCheck, Loader2 } from "lucide-react";
+import { ArrowUpRight, Plus, Trash2, BookCheck, Loader2, AlertTriangle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/lib/auth";
 import { PageHeader } from "@/components/library/PageHeader";
 import { FormField } from "@/components/library/FormField";
+import { BookCombobox } from "@/components/library/BookCombobox";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -22,9 +24,20 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { addDays, fmtDate, logActivity, todayISO } from "@/lib/helpers";
 import { handleFormKeyDown, validators } from "@/lib/form-utils";
 import { toast } from "sonner";
+
 
 export const Route = createFileRoute("/_app/issue")({
   head: () => ({ meta: [{ title: "Issue Book — School withleo" }] }),
