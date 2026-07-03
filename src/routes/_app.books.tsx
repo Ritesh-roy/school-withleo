@@ -689,27 +689,69 @@ function BookMaster() {
             />,
           )}
           {wrap(
-            "Cover Image URL",
+            "Cover Image",
             "cover_image",
-            true,
-            <Input
-              placeholder="https://…"
-              value={form.cover_image}
-              onChange={(e) => set("cover_image", e.target.value)}
-              onBlur={() => touch("cover_image")}
-            />,
+            false,
+            <div className="space-y-2">
+              <Input
+                placeholder="Paste image URL (optional)"
+                value={form.cover_image}
+                onChange={(e) => set("cover_image", e.target.value)}
+                onBlur={() => touch("cover_image")}
+              />
+              <div className="flex items-center gap-2">
+                <input
+                  id="cover-upload"
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (!file) return;
+                    if (file.size > 2 * 1024 * 1024) {
+                      toast.error("Image must be under 2 MB.");
+                      return;
+                    }
+                    const reader = new FileReader();
+                    reader.onload = () => set("cover_image", String(reader.result ?? ""));
+                    reader.readAsDataURL(file);
+                  }}
+                />
+                <label
+                  htmlFor="cover-upload"
+                  className="inline-flex cursor-pointer items-center rounded-md border border-input bg-background px-3 py-1.5 text-xs font-medium hover:bg-accent"
+                >
+                  Upload
+                </label>
+                {form.cover_image && (
+                  <button
+                    type="button"
+                    onClick={() => set("cover_image", "")}
+                    className="text-xs text-destructive hover:underline"
+                  >
+                    Clear
+                  </button>
+                )}
+                <img
+                  src={form.cover_image || "/placeholder.svg"}
+                  alt="Cover preview"
+                  onError={(e) => ((e.target as HTMLImageElement).src = "/placeholder.svg")}
+                  className="ml-auto h-12 w-9 rounded border object-cover bg-muted"
+                />
+              </div>
+            </div>,
+            "Optional — upload, paste URL, or leave blank.",
           )}
         </div>
         <div className="mt-4">
           {wrap(
             "Content / Description",
             "content",
-            true,
+            false,
             <Textarea
-              placeholder="Enter description…"
+              placeholder="Enter description (optional)…"
               value={form.content}
               onChange={(e) => set("content", e.target.value)}
-              onBlur={() => touch("content")}
               rows={2}
               maxLength={2000}
             />,
