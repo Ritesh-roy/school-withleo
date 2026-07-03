@@ -1,10 +1,12 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowUpRight, Plus, Trash2, BookCheck, Loader2 } from "lucide-react";
+import { ArrowUpRight, Plus, Trash2, BookCheck, Loader2, AlertTriangle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/lib/auth";
 import { PageHeader } from "@/components/library/PageHeader";
 import { FormField } from "@/components/library/FormField";
+import { BookCombobox } from "@/components/library/BookCombobox";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -22,9 +24,20 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { addDays, fmtDate, logActivity, todayISO } from "@/lib/helpers";
 import { handleFormKeyDown, validators } from "@/lib/form-utils";
 import { toast } from "sonner";
+
 
 export const Route = createFileRoute("/_app/issue")({
   head: () => ({ meta: [{ title: "Issue Book — School withleo" }] }),
@@ -41,6 +54,7 @@ interface StagedBook {
 
 function IssueBook() {
   const qc = useQueryClient();
+  const { isAdmin } = useAuth();
   const [issueDate, setIssueDate] = useState(todayISO());
   const [memberId, setMemberId] = useState("");
   const [bookId, setBookId] = useState("");
@@ -48,6 +62,11 @@ function IssueBook() {
   const [staged, setStaged] = useState<StagedBook[]>([]);
   const [touched, setTouched] = useState<Record<string, boolean>>({});
   const [issuing, setIssuing] = useState(false);
+  const [overrideOverdue, setOverrideOverdue] = useState(false);
+  const [overdueDialog, setOverdueDialog] = useState<{
+    count: number;
+    titles: string;
+  } | null>(null);
 
   const { data: settings } = useQuery({
     queryKey: ["settings"],
@@ -74,13 +93,30 @@ function IssueBook() {
     queryFn: async () => {
       const { data } = await supabase
         .from("books")
-        .select("id,collection_no,title,access_type,available_copies")
+        .select("id,collection_no,title,author,isbn,access_type,available_copies")
         .eq("is_deleted", false)
         .gt("available_copies", 0)
         .order("title");
       return data ?? [];
     },
   });
+
+  // Overdue books for the currently selected member (for the banner).
+  const { data: overdueForMember = [] } = useQuery({
+    queryKey: ["overdue-for-member", memberId],
+    enabled: !!memberId,
+    queryFn: async () => {
+      const today = todayISO();
+      const { data } = await supabase
+        .from("book_issues")
+        .select("id,due_date,books(title,collection_no)")
+        .eq("member_id", memberId)
+        .in("status", ["issued", "overdue"])
+        .lt("due_date", today);
+      return data ?? [];
+    },
+  });
+
 
   useEffect(() => {
     const days = settings?.default_issue_days ?? 14;
@@ -127,42 +163,64 @@ function IssueBook() {
     if (issueDateError) return toast.error(issueDateError);
     if (regDateError) return toast.error(regDateError);
     if (staged.length === 0) return toast.error("Add at least one book.");
+    if (overdueForMember.length > 0 && !(isAdmin && overrideOverdue)) {
+      const titles = overdueForMember
+        .map((o: any) => o.books?.title ?? "(untitled)")
+        .join(", ");
+      setOverdueDialog({ count: overdueForMember.length, titles });
+      return;
+    }
     if (issuing) return;
     setIssuing(true);
 
     try {
-      const rows = staged.map((s) => ({
-        member_id: memberId,
-        book_id: s.book_id,
-        issue_date: issueDate,
-        due_date: s.due_date,
-        status: "issued" as const,
-      }));
-      const { error } = await supabase.from("book_issues").insert(rows);
-      if (error) throw error;
+      let succeeded = 0;
       for (const s of staged) {
-        const b = books.find((x) => x.id === s.book_id);
-        if (b) {
-          await supabase
-            .from("books")
-            .update({ available_copies: Math.max(0, b.available_copies - 1) })
-            .eq("id", s.book_id);
+        const { error } = await supabase.rpc("issue_book_atomic", {
+          _member_id: memberId,
+          _book_id: s.book_id,
+          _issue_date: issueDate,
+          _due_date: s.due_date,
+          _allow_overdue: isAdmin && overrideOverdue,
+        });
+        if (error) {
+          const msg = error.message || "";
+          if (msg.includes("ALREADY_ISSUED"))
+            throw new Error(
+              `#${s.collection_no} — this book copy is already issued to another member.`,
+            );
+          if (msg.includes("BOOK_NOT_FOUND"))
+            throw new Error(`Book "${s.title}" not found.`);
+          if (msg.includes("MEMBER_OVERDUE")) {
+            const parts = msg.split("MEMBER_OVERDUE:")[1] ?? "";
+            const [countStr, ...rest] = parts.split(":");
+            setOverdueDialog({
+              count: Number(countStr) || overdueForMember.length,
+              titles: rest.join(":").trim(),
+            });
+            throw new Error("Member has overdue books — action required.");
+          }
+          throw error;
         }
+        succeeded += 1;
       }
       const member = members.find((m) => m.id === memberId);
-      logActivity("Issue books", `${staged.length} book(s) to ${member?.name}`);
-      toast.success(`${staged.length} book(s) issued successfully`);
+      logActivity("Issue books", `${succeeded} book(s) to ${member?.name}`);
+      toast.success(`${succeeded} book(s) issued successfully`);
       setStaged([]);
       setMemberId("");
+      setOverrideOverdue(false);
       setTouched({});
       qc.invalidateQueries({ queryKey: ["books-available"] });
       qc.invalidateQueries({ queryKey: ["dashboard"] });
+      qc.invalidateQueries({ queryKey: ["overdue-for-member", memberId] });
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Failed to issue books");
     } finally {
       setIssuing(false);
     }
   };
+
 
   return (
     <div>
@@ -221,28 +279,42 @@ function IssueBook() {
           </FormField>
         </div>
 
+        {memberId && overdueForMember.length > 0 && (
+          <div className="mt-5 flex items-start gap-3 rounded-lg border border-destructive/40 bg-destructive/10 p-3 text-sm">
+            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-destructive" />
+            <div className="flex-1">
+              <p className="font-semibold text-destructive">
+                {overdueForMember.length} overdue book(s) — issuing is blocked.
+              </p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                {overdueForMember
+                  .map((o: any) => `#${o.books?.collection_no} ${o.books?.title}`)
+                  .join(", ")}
+              </p>
+              {isAdmin && (
+                <label className="mt-2 inline-flex items-center gap-2 text-xs">
+                  <input
+                    type="checkbox"
+                    checked={overrideOverdue}
+                    onChange={(e) => setOverrideOverdue(e.target.checked)}
+                  />
+                  Admin override — issue anyway
+                </label>
+              )}
+            </div>
+          </div>
+        )}
+
         <div className="mt-5 border-t pt-5">
           <p className="mb-3 text-sm font-semibold">Add Books</p>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-[1fr_1fr_auto]">
             <FormField label="Book" required error={touched.bookId && !bookId ? "Please select a book." : null}>
-              <Select value={bookId || undefined} onValueChange={setBookId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select book" />
-                </SelectTrigger>
-                <SelectContent>
-                  {books.length === 0 ? (
-                    <div className="px-2 py-1.5 text-xs text-muted-foreground">
-                      No available books.
-                    </div>
-                  ) : (
-                    books.map((b) => (
-                      <SelectItem key={b.id} value={b.id}>
-                        #{b.collection_no} — {b.title} ({b.available_copies} avail)
-                      </SelectItem>
-                    ))
-                  )}
-                </SelectContent>
-              </Select>
+              <BookCombobox
+                value={bookId}
+                onChange={setBookId}
+                books={books as any}
+                placeholder="Search title, author, ISBN, coll. no…"
+              />
             </FormField>
             <FormField label="Due Date" required>
               <Input
@@ -259,6 +331,7 @@ function IssueBook() {
             </div>
           </div>
         </div>
+
 
         <div className="mt-5 overflow-x-auto rounded-lg border">
           <Table>
@@ -304,7 +377,16 @@ function IssueBook() {
         </div>
 
         <div className="mt-4 flex justify-end">
-          <Button onClick={issueAll} disabled={issuing || staged.length === 0 || !!memberError || !!regDateError}>
+          <Button
+            onClick={issueAll}
+            disabled={
+              issuing ||
+              staged.length === 0 ||
+              !!memberError ||
+              !!regDateError ||
+              (overdueForMember.length > 0 && !(isAdmin && overrideOverdue))
+            }
+          >
             {issuing ? (
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
             ) : (
@@ -314,6 +396,33 @@ function IssueBook() {
           </Button>
         </div>
       </div>
+
+      <AlertDialog open={!!overdueDialog} onOpenChange={(o) => !o && setOverdueDialog(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Member has overdue books</AlertDialogTitle>
+            <AlertDialogDescription>
+              {overdueDialog?.count} overdue book(s): {overdueDialog?.titles}. Please
+              return them before issuing more.
+              {isAdmin && " Admins can tick the override checkbox to proceed."}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>OK</AlertDialogCancel>
+            {isAdmin && (
+              <AlertDialogAction
+                onClick={() => {
+                  setOverrideOverdue(true);
+                  setOverdueDialog(null);
+                }}
+              >
+                Override & Issue
+              </AlertDialogAction>
+            )}
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
+

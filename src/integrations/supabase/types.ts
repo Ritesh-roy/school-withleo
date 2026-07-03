@@ -975,6 +975,16 @@ export type Database = {
         }
         Returns: boolean
       }
+      issue_book_atomic: {
+        Args: {
+          _allow_overdue?: boolean
+          _book_id: string
+          _due_date: string
+          _issue_date: string
+          _member_id: string
+        }
+        Returns: string
+      }
     }
     Enums: {
       app_role: "super_admin" | "admin" | "librarian" | "teacher" | "student"

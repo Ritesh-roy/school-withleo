@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
   BookOpen,
@@ -24,6 +25,13 @@ import {
   ResponsiveContainer,
   Legend,
 } from "recharts";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { StatCard } from "@/components/library/StatCard";
 import { currency, fmtDate } from "@/lib/helpers";
@@ -32,6 +40,7 @@ export const Route = createFileRoute("/_app/dashboard")({
   head: () => ({ meta: [{ title: "Library Dashboard — School withleo" }] }),
   component: Dashboard,
 });
+
 
 const CHART_COLORS = [
   "#3159b8",
@@ -56,15 +65,27 @@ function monthMeta(d: string) {
 }
 
 function Dashboard() {
+  const currentYear = new Date().getFullYear();
+  const [year, setYear] = useState<number>(currentYear);
+  const yearOptions = useMemo(() => {
+    const yrs: number[] = [];
+    for (let y = currentYear; y >= currentYear - 5; y--) yrs.push(y);
+    return yrs;
+  }, [currentYear]);
+
   const { data } = useQuery({
-    queryKey: ["dashboard"],
+    queryKey: ["dashboard", year],
     queryFn: async () => {
+      const from = `${year}-01-01`;
+      const to = `${year}-12-31`;
       const [books, members, issues] = await Promise.all([
         supabase.from("books").select("id,category,no_of_copies").eq("is_deleted", false),
         supabase.from("members").select("id,created_at,is_active"),
         supabase
           .from("book_issues")
-          .select("id,status,issue_date,return_date,fine_collected,fine_amount,due_date,created_at,member_id,book_id"),
+          .select("id,status,issue_date,return_date,fine_collected,fine_amount,due_date,created_at,member_id,book_id")
+          .gte("issue_date", from)
+          .lte("issue_date", to),
       ]);
       return {
         books: books.data ?? [],
@@ -77,6 +98,7 @@ function Dashboard() {
   const books = data?.books ?? [];
   const members = data?.members ?? [];
   const issues = data?.issues ?? [];
+
 
   const totalBooks = books.reduce((s, b) => s + (b.no_of_copies ?? 1), 0);
   const issued = issues.filter((i) => i.status === "issued" || i.status === "overdue");
@@ -129,11 +151,30 @@ function Dashboard() {
     .sort((a, b) => (a.created_at < b.created_at ? 1 : -1))
     .slice(0, 6);
 
+  const pieTotal = categoryChart.reduce((s, c) => s + c.value, 0);
+
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-2">
-        <BookOpen className="h-6 w-6 text-primary" />
-        <h2 className="text-2xl font-bold">Library Dashboard</h2>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-2">
+          <BookOpen className="h-6 w-6 text-primary" />
+          <h2 className="text-2xl font-bold">Library Dashboard</h2>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="text-sm text-muted-foreground">Year</span>
+          <Select value={String(year)} onValueChange={(v) => setYear(Number(v))}>
+            <SelectTrigger className="w-[110px]">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {yearOptions.map((y) => (
+                <SelectItem key={y} value={String(y)}>
+                  {y}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
@@ -151,7 +192,7 @@ function Dashboard() {
 
       <div className="grid gap-4 lg:grid-cols-2">
         <div className="rounded-xl border bg-card p-5 shadow-[var(--shadow-card)]">
-          <h3 className="mb-4 font-semibold">Book Issue Analytics</h3>
+          <h3 className="mb-4 font-semibold">Book Issue Analytics — {year}</h3>
           <ResponsiveContainer width="100%" height={260}>
             <BarChart data={issueChart}>
               <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
@@ -164,18 +205,27 @@ function Dashboard() {
         </div>
         <div className="rounded-xl border bg-card p-5 shadow-[var(--shadow-card)]">
           <h3 className="mb-4 font-semibold">Books by Category</h3>
-          <ResponsiveContainer width="100%" height={260}>
-            <PieChart>
+          <ResponsiveContainer width="100%" height={280}>
+            <PieChart margin={{ top: 8, right: 24, bottom: 8, left: 24 }}>
               <Pie
                 data={categoryChart}
                 dataKey="value"
                 nameKey="name"
                 cx="50%"
                 cy="50%"
+                innerRadius={50}
                 outerRadius={90}
-                label
+                paddingAngle={1}
+                minAngle={2}
+                labelLine={false}
+                label={({ name, value, percent }) => {
+                  // hide labels on tiny slices to avoid overlap
+                  if (!percent || percent < 0.06) return "";
+                  return `${name} ${Math.round(percent * 100)}%`;
+                }}
               >
                 {categoryChart.map((_, i) => (
+
                   <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
                 ))}
               </Pie>
