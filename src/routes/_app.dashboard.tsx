@@ -65,15 +65,27 @@ function monthMeta(d: string) {
 }
 
 function Dashboard() {
+  const currentYear = new Date().getFullYear();
+  const [year, setYear] = useState<number>(currentYear);
+  const yearOptions = useMemo(() => {
+    const yrs: number[] = [];
+    for (let y = currentYear; y >= currentYear - 5; y--) yrs.push(y);
+    return yrs;
+  }, [currentYear]);
+
   const { data } = useQuery({
-    queryKey: ["dashboard"],
+    queryKey: ["dashboard", year],
     queryFn: async () => {
+      const from = `${year}-01-01`;
+      const to = `${year}-12-31`;
       const [books, members, issues] = await Promise.all([
         supabase.from("books").select("id,category,no_of_copies").eq("is_deleted", false),
         supabase.from("members").select("id,created_at,is_active"),
         supabase
           .from("book_issues")
-          .select("id,status,issue_date,return_date,fine_collected,fine_amount,due_date,created_at,member_id,book_id"),
+          .select("id,status,issue_date,return_date,fine_collected,fine_amount,due_date,created_at,member_id,book_id")
+          .gte("issue_date", from)
+          .lte("issue_date", to),
       ]);
       return {
         books: books.data ?? [],
@@ -86,6 +98,7 @@ function Dashboard() {
   const books = data?.books ?? [];
   const members = data?.members ?? [];
   const issues = data?.issues ?? [];
+
 
   const totalBooks = books.reduce((s, b) => s + (b.no_of_copies ?? 1), 0);
   const issued = issues.filter((i) => i.status === "issued" || i.status === "overdue");
