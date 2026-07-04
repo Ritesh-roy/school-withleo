@@ -152,6 +152,60 @@ function LibraryMaster() {
     qc.invalidateQueries({ queryKey: ["masters", active] });
   };
 
+  const filteredRows = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return rows;
+    return rows.filter((r) => r.name.toLowerCase().includes(q));
+  }, [rows, search]);
+
+  const allVisibleSelected =
+    filteredRows.length > 0 && filteredRows.every((r) => selected.has(r.id));
+  const toggleAllVisible = (checked: boolean) => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      filteredRows.forEach((r) => (checked ? next.add(r.id) : next.delete(r.id)));
+      return next;
+    });
+  };
+  const toggleOne = (id: string, checked: boolean) => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (checked) next.add(id);
+      else next.delete(id);
+      return next;
+    });
+  };
+
+  const bulkSetStatus = async (nextStatus: boolean) => {
+    if (selected.size === 0) return;
+    const ids = Array.from(selected);
+    const { error } = await supabase
+      .from("library_masters")
+      .update({ status: nextStatus })
+      .in("id", ids);
+    if (error) return toast.error(error.message);
+    toast.success(
+      `${ids.length} ${label.toLowerCase()}${ids.length === 1 ? "" : "s"} ${nextStatus ? "activated" : "deactivated"}`,
+    );
+    setSelected(new Set());
+    qc.invalidateQueries({ queryKey: ["masters", active] });
+    qc.invalidateQueries({ queryKey: ["masters-all"] });
+  };
+
+  const confirmBulkDelete = async () => {
+    const ids = Array.from(selected);
+    setBulkDelete(false);
+    if (ids.length === 0) return;
+    const { error } = await supabase
+      .from("library_masters")
+      .delete()
+      .in("id", ids);
+    if (error) return toast.error(error.message);
+    toast.success(`${ids.length} ${label.toLowerCase()}${ids.length === 1 ? "" : "s"} deleted`);
+    setSelected(new Set());
+    qc.invalidateQueries({ queryKey: ["masters", active] });
+  };
+
   return (
     <div>
       <PageHeader
