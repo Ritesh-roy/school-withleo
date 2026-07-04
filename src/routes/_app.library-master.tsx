@@ -448,23 +448,6 @@ function LibraryMaster() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-      </div>
-      )}
-
-      <AlertDialog open={!!deleteId} onOpenChange={(o) => !o && setDeleteId(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete record?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This action cannot be undone.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmDelete}>Delete</AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </div>
   );
 }
