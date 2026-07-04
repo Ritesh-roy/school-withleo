@@ -68,12 +68,17 @@ function LibraryMaster() {
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [touched, setTouched] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [search, setSearch] = useState("");
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [bulkDelete, setBulkDelete] = useState(false);
 
   const label = TABS.find((t) => t.key === active)!.label;
   const nameError = validators.required(name, `${label} Name`);
 
   useEffect(() => {
     setTouched(false);
+    setSearch("");
+    setSelected(new Set());
   }, [active]);
 
   const { data: rows = [] } = useQuery({
