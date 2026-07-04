@@ -43,7 +43,7 @@ interface IssueRow {
 function ReturnBook() {
   const qc = useQueryClient();
   const [search, setSearch] = useState("");
-  const [collectFine, setCollectFine] = useState<Record<string, boolean>>({});
+  const [paidInput, setPaidInput] = useState<Record<string, string>>({});
 
   const { data: settings } = useQuery({
     queryKey: ["settings"],
