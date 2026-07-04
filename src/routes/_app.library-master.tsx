@@ -152,7 +152,7 @@ function LibraryMaster() {
     qc.invalidateQueries({ queryKey: ["masters", active] });
   };
 
-  const filteredRows = useMemo(() => {
+  const filteredRows: MasterRow[] = useMemo(() => {
     const q = search.trim().toLowerCase();
     if (!q) return rows;
     return rows.filter((r) => r.name.toLowerCase().includes(q));
