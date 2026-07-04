@@ -85,9 +85,20 @@ function ReturnBook() {
     return overdue > 0 ? overdue * Number(finePerDay) : 0;
   };
 
+  const paidFor = (i: IssueRow, fine: number) => {
+    if (fine <= 0) return 0;
+    const raw = paidInput[i.id];
+    // Default paid amount = full fine; user can override with a partial value.
+    if (raw === undefined || raw === "") return fine;
+    const n = Number(raw);
+    if (Number.isNaN(n) || n < 0) return 0;
+    return Math.min(n, fine);
+  };
+
   const doReturn = async (i: IssueRow) => {
     const fine = fineFor(i);
-    const collected = collectFine[i.id] ? fine : 0;
+    const collected = paidFor(i, fine);
+    const balance = Math.max(0, fine - collected);
     const { error } = await supabase
       .from("book_issues")
       .update({
@@ -104,8 +115,15 @@ function ReturnBook() {
         .update({ available_copies: i.books.available_copies + 1 })
         .eq("id", i.book_id);
     }
-    logActivity("Return book", `${i.books?.title} (fine ${currency(collected)})`);
-    toast.success("Book returned");
+    logActivity(
+      "Return book",
+      `${i.books?.title} — Fine ${currency(fine)}, Paid ${currency(collected)}, Balance ${currency(balance)}`,
+    );
+    toast.success(
+      balance > 0
+        ? `Book returned — Paid ${currency(collected)}, Balance ${currency(balance)}`
+        : "Book returned",
+    );
     qc.invalidateQueries({ queryKey: ["active-issues"] });
     qc.invalidateQueries({ queryKey: ["dashboard"] });
   };
