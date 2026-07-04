@@ -130,6 +130,8 @@ function ReturnBook() {
 
   const printReceipt = (i: IssueRow) => {
     const fine = fineFor(i);
+    const paid = paidFor(i, fine);
+    const balance = Math.max(0, fine - paid);
     printRows(
       "Return Receipt",
       [
@@ -143,7 +145,9 @@ function ReturnBook() {
         { k: "Issue Date", v: fmtDate(i.issue_date) },
         { k: "Due Date", v: fmtDate(i.due_date) },
         { k: "Return Date", v: fmtDate(todayISO()) },
-        { k: "Fine", v: currency(fine) },
+        { k: "Total Fine", v: currency(fine) },
+        { k: "Amount Paid", v: currency(paid) },
+        { k: "Balance Due", v: currency(balance) },
       ],
     );
   };
