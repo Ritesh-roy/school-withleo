@@ -176,15 +176,16 @@ function ReturnBook() {
                 <TableHead>Member</TableHead>
                 <TableHead>Issue Date</TableHead>
                 <TableHead>Due Date</TableHead>
-                <TableHead>Fine</TableHead>
-                <TableHead>Collect</TableHead>
+                <TableHead className="text-right">Fine</TableHead>
+                <TableHead className="w-32">Paid</TableHead>
+                <TableHead className="text-right">Balance</TableHead>
                 <TableHead className="text-right">Return</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {filtered.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={8} className="py-8 text-center text-muted-foreground">
+                  <TableCell colSpan={9} className="py-8 text-center text-muted-foreground">
                     No issued books found.
                   </TableCell>
                 </TableRow>
@@ -192,6 +193,8 @@ function ReturnBook() {
                 filtered.map((i) => {
                   const fine = fineFor(i);
                   const overdue = daysBetween(i.due_date, todayISO()) > 0;
+                  const paid = paidFor(i, fine);
+                  const balance = Math.max(0, fine - paid);
                   return (
                     <TableRow key={i.id}>
                       <TableCell>{i.books?.collection_no}</TableCell>
@@ -203,15 +206,32 @@ function ReturnBook() {
                           {fmtDate(i.due_date)}
                         </span>
                       </TableCell>
-                      <TableCell>{currency(fine)}</TableCell>
+                      <TableCell className="text-right font-medium">
+                        {currency(fine)}
+                      </TableCell>
                       <TableCell>
-                        <Checkbox
-                          checked={!!collectFine[i.id]}
-                          disabled={fine === 0}
-                          onCheckedChange={(v) =>
-                            setCollectFine((c) => ({ ...c, [i.id]: Boolean(v) }))
+                        <Input
+                          value={
+                            paidInput[i.id] !== undefined
+                              ? paidInput[i.id]
+                              : fine > 0
+                                ? String(fine)
+                                : "0"
                           }
+                          inputMode="decimal"
+                          disabled={fine === 0}
+                          onKeyDown={restrict.decimal}
+                          onChange={(e) => {
+                            const clean = sanitize.decimal(e.target.value);
+                            setPaidInput((p) => ({ ...p, [i.id]: clean }));
+                          }}
+                          className="h-8 w-24 text-right"
                         />
+                      </TableCell>
+                      <TableCell
+                        className={`text-right ${balance > 0 ? "font-medium text-destructive" : "text-muted-foreground"}`}
+                      >
+                        {currency(balance)}
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex items-center justify-end gap-2">
