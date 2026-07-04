@@ -244,6 +244,22 @@ function BookMaster() {
       purchase_date: form.purchase_date || null,
     };
     try {
+      // Duplicate-ISBN pre-check so the user gets a specific message instead
+      // of a generic "Failed to save book".
+      if (payload.isbn) {
+        const { data: dup } = await supabase
+          .from("books")
+          .select("id,collection_no")
+          .eq("isbn", payload.isbn)
+          .eq("is_deleted", false)
+          .limit(1);
+        if (dup && dup.length && dup[0].id !== editId) {
+          setSaving(false);
+          return toast.error(
+            `A book with ISBN "${payload.isbn}" already exists (Coll. No ${dup[0].collection_no}).`,
+          );
+        }
+      }
       if (editId) {
         const { error } = await supabase.from("books").update(payload).eq("id", editId);
         if (error) throw error;
@@ -260,7 +276,13 @@ function BookMaster() {
       reset();
       qc.invalidateQueries({ queryKey: ["books"] });
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Failed to save book");
+      const msg = e instanceof Error ? e.message : "Failed to save book";
+      // Postgres unique-violation surface (in case a DB constraint is added later).
+      if (/duplicate key|unique constraint|already exists/i.test(msg) && payload.isbn) {
+        toast.error(`A book with ISBN "${payload.isbn}" already exists.`);
+      } else {
+        toast.error(msg);
+      }
     } finally {
       setSaving(false);
     }

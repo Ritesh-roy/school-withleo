@@ -148,6 +148,34 @@ function Members() {
       expiry_date: form.expiry_date || null,
     };
     try {
+      // Uniqueness pre-check for email and mobile — a member with the same
+      // contact info shouldn't be created twice (edit is exempt).
+      if (payload.email) {
+        const { data: dupE } = await supabase
+          .from("members")
+          .select("id,member_no,name")
+          .ilike("email", payload.email)
+          .limit(1);
+        if (dupE && dupE.length && dupE[0].id !== editId) {
+          setSaving(false);
+          return toast.error(
+            `A member with email "${payload.email}" already exists (Member No ${dupE[0].member_no} — ${dupE[0].name}).`,
+          );
+        }
+      }
+      if (payload.mobile_no) {
+        const { data: dupM } = await supabase
+          .from("members")
+          .select("id,member_no,name")
+          .eq("mobile_no", payload.mobile_no)
+          .limit(1);
+        if (dupM && dupM.length && dupM[0].id !== editId) {
+          setSaving(false);
+          return toast.error(
+            `A member with mobile "${payload.mobile_no}" already exists (Member No ${dupM[0].member_no} — ${dupM[0].name}).`,
+          );
+        }
+      }
       if (editId) {
         const { error } = await supabase.from("members").update(payload).eq("id", editId);
         if (error) throw error;

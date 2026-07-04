@@ -6,7 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { PageHeader } from "@/components/library/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Checkbox } from "@/components/ui/checkbox";
+import { restrict, sanitize } from "@/lib/form-utils";
 import {
   Table,
   TableBody,
@@ -43,7 +43,7 @@ interface IssueRow {
 function ReturnBook() {
   const qc = useQueryClient();
   const [search, setSearch] = useState("");
-  const [collectFine, setCollectFine] = useState<Record<string, boolean>>({});
+  const [paidInput, setPaidInput] = useState<Record<string, string>>({});
 
   const { data: settings } = useQuery({
     queryKey: ["settings"],
@@ -85,9 +85,20 @@ function ReturnBook() {
     return overdue > 0 ? overdue * Number(finePerDay) : 0;
   };
 
+  const paidFor = (i: IssueRow, fine: number) => {
+    if (fine <= 0) return 0;
+    const raw = paidInput[i.id];
+    // Default paid amount = full fine; user can override with a partial value.
+    if (raw === undefined || raw === "") return fine;
+    const n = Number(raw);
+    if (Number.isNaN(n) || n < 0) return 0;
+    return Math.min(n, fine);
+  };
+
   const doReturn = async (i: IssueRow) => {
     const fine = fineFor(i);
-    const collected = collectFine[i.id] ? fine : 0;
+    const collected = paidFor(i, fine);
+    const balance = Math.max(0, fine - collected);
     const { error } = await supabase
       .from("book_issues")
       .update({
@@ -104,14 +115,23 @@ function ReturnBook() {
         .update({ available_copies: i.books.available_copies + 1 })
         .eq("id", i.book_id);
     }
-    logActivity("Return book", `${i.books?.title} (fine ${currency(collected)})`);
-    toast.success("Book returned");
+    logActivity(
+      "Return book",
+      `${i.books?.title} — Fine ${currency(fine)}, Paid ${currency(collected)}, Balance ${currency(balance)}`,
+    );
+    toast.success(
+      balance > 0
+        ? `Book returned — Paid ${currency(collected)}, Balance ${currency(balance)}`
+        : "Book returned",
+    );
     qc.invalidateQueries({ queryKey: ["active-issues"] });
     qc.invalidateQueries({ queryKey: ["dashboard"] });
   };
 
   const printReceipt = (i: IssueRow) => {
     const fine = fineFor(i);
+    const paid = paidFor(i, fine);
+    const balance = Math.max(0, fine - paid);
     printRows(
       "Return Receipt",
       [
@@ -125,7 +145,9 @@ function ReturnBook() {
         { k: "Issue Date", v: fmtDate(i.issue_date) },
         { k: "Due Date", v: fmtDate(i.due_date) },
         { k: "Return Date", v: fmtDate(todayISO()) },
-        { k: "Fine", v: currency(fine) },
+        { k: "Total Fine", v: currency(fine) },
+        { k: "Amount Paid", v: currency(paid) },
+        { k: "Balance Due", v: currency(balance) },
       ],
     );
   };
@@ -158,15 +180,16 @@ function ReturnBook() {
                 <TableHead>Member</TableHead>
                 <TableHead>Issue Date</TableHead>
                 <TableHead>Due Date</TableHead>
-                <TableHead>Fine</TableHead>
-                <TableHead>Collect</TableHead>
+                <TableHead className="text-right">Fine</TableHead>
+                <TableHead className="w-32">Paid</TableHead>
+                <TableHead className="text-right">Balance</TableHead>
                 <TableHead className="text-right">Return</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {filtered.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={8} className="py-8 text-center text-muted-foreground">
+                  <TableCell colSpan={9} className="py-8 text-center text-muted-foreground">
                     No issued books found.
                   </TableCell>
                 </TableRow>
@@ -174,6 +197,8 @@ function ReturnBook() {
                 filtered.map((i) => {
                   const fine = fineFor(i);
                   const overdue = daysBetween(i.due_date, todayISO()) > 0;
+                  const paid = paidFor(i, fine);
+                  const balance = Math.max(0, fine - paid);
                   return (
                     <TableRow key={i.id}>
                       <TableCell>{i.books?.collection_no}</TableCell>
@@ -185,15 +210,32 @@ function ReturnBook() {
                           {fmtDate(i.due_date)}
                         </span>
                       </TableCell>
-                      <TableCell>{currency(fine)}</TableCell>
+                      <TableCell className="text-right font-medium">
+                        {currency(fine)}
+                      </TableCell>
                       <TableCell>
-                        <Checkbox
-                          checked={!!collectFine[i.id]}
-                          disabled={fine === 0}
-                          onCheckedChange={(v) =>
-                            setCollectFine((c) => ({ ...c, [i.id]: Boolean(v) }))
+                        <Input
+                          value={
+                            paidInput[i.id] !== undefined
+                              ? paidInput[i.id]
+                              : fine > 0
+                                ? String(fine)
+                                : "0"
                           }
+                          inputMode="decimal"
+                          disabled={fine === 0}
+                          onKeyDown={restrict.decimal}
+                          onChange={(e) => {
+                            const clean = sanitize.decimal(e.target.value);
+                            setPaidInput((p) => ({ ...p, [i.id]: clean }));
+                          }}
+                          className="h-8 w-24 text-right"
                         />
+                      </TableCell>
+                      <TableCell
+                        className={`text-right ${balance > 0 ? "font-medium text-destructive" : "text-muted-foreground"}`}
+                      >
+                        {currency(balance)}
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex items-center justify-end gap-2">

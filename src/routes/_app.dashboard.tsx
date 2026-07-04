@@ -187,7 +187,7 @@ function Dashboard() {
         <StatCard label="Books Returned" value={returned.length} icon={ArrowDownLeft} variant="green" />
         <StatCard label="Fine Revenue" value={currency(totalRevenue)} icon={IndianRupee} variant="blue" />
         <StatCard label="New Members (Month)" value={newMembers} icon={UserPlus} variant="orange" />
-        <StatCard label="Active Members" value={members.filter((m) => m.is_active).length} icon={Users} variant="red" />
+        <StatCard label="Active Members" value={members.filter((m) => m.is_active).length} icon={Users} variant="blue" />
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2">
@@ -205,32 +205,47 @@ function Dashboard() {
         </div>
         <div className="rounded-xl border bg-card p-5 shadow-[var(--shadow-card)]">
           <h3 className="mb-4 font-semibold">Books by Category</h3>
-          <ResponsiveContainer width="100%" height={280}>
-            <PieChart margin={{ top: 8, right: 24, bottom: 8, left: 24 }}>
+          <ResponsiveContainer width="100%" height={300}>
+            <PieChart margin={{ top: 8, right: 8, bottom: 8, left: 8 }}>
               <Pie
                 data={categoryChart}
                 dataKey="value"
                 nameKey="name"
-                cx="50%"
+                cx="42%"
                 cy="50%"
-                innerRadius={50}
-                outerRadius={90}
+                innerRadius={55}
+                outerRadius={95}
                 paddingAngle={1}
-                minAngle={2}
+                minAngle={3}
                 labelLine={false}
-                label={({ name, value, percent }) => {
-                  // hide labels on tiny slices to avoid overlap
-                  if (!percent || percent < 0.06) return "";
-                  return `${name} ${Math.round(percent * 100)}%`;
+                label={({ percent }) => {
+                  // in-slice percent only for larger slices; details live in legend
+                  if (!percent || percent < 0.08) return "";
+                  return `${Math.round(percent * 100)}%`;
                 }}
               >
                 {categoryChart.map((_, i) => (
-
                   <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
                 ))}
               </Pie>
-              <Tooltip />
-              <Legend />
+              <Tooltip
+                formatter={(value: number, name: string) => {
+                  const pct = pieTotal ? Math.round((value / pieTotal) * 100) : 0;
+                  return [`${value} (${pct}%)`, name];
+                }}
+              />
+              <Legend
+                layout="vertical"
+                align="right"
+                verticalAlign="middle"
+                iconSize={10}
+                wrapperStyle={{ fontSize: 12, lineHeight: "20px", maxWidth: 170 }}
+                formatter={(value, entry) => {
+                  const v = (entry?.payload as { value?: number } | undefined)?.value ?? 0;
+                  const pct = pieTotal ? Math.round((v / pieTotal) * 100) : 0;
+                  return `${value} — ${pct}%`;
+                }}
+              />
             </PieChart>
           </ResponsiveContainer>
         </div>

@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Pencil, Trash2, BookMarked, Save, RotateCcw, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -68,12 +68,17 @@ function LibraryMaster() {
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [touched, setTouched] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [search, setSearch] = useState("");
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [bulkDelete, setBulkDelete] = useState(false);
 
   const label = TABS.find((t) => t.key === active)!.label;
   const nameError = validators.required(name, `${label} Name`);
 
   useEffect(() => {
     setTouched(false);
+    setSearch("");
+    setSelected(new Set());
   }, [active]);
 
   const { data: rows = [] } = useQuery({
@@ -144,6 +149,60 @@ function LibraryMaster() {
     setDeleteId(null);
     if (error) return toast.error(error.message);
     toast.success(`${label} deleted`);
+    qc.invalidateQueries({ queryKey: ["masters", active] });
+  };
+
+  const filteredRows: MasterRow[] = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return rows;
+    return rows.filter((r) => r.name.toLowerCase().includes(q));
+  }, [rows, search]);
+
+  const allVisibleSelected =
+    filteredRows.length > 0 && filteredRows.every((r) => selected.has(r.id));
+  const toggleAllVisible = (checked: boolean) => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      filteredRows.forEach((r) => (checked ? next.add(r.id) : next.delete(r.id)));
+      return next;
+    });
+  };
+  const toggleOne = (id: string, checked: boolean) => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (checked) next.add(id);
+      else next.delete(id);
+      return next;
+    });
+  };
+
+  const bulkSetStatus = async (nextStatus: boolean) => {
+    if (selected.size === 0) return;
+    const ids = Array.from(selected);
+    const { error } = await supabase
+      .from("library_masters")
+      .update({ status: nextStatus })
+      .in("id", ids);
+    if (error) return toast.error(error.message);
+    toast.success(
+      `${ids.length} ${label.toLowerCase()}${ids.length === 1 ? "" : "s"} ${nextStatus ? "activated" : "deactivated"}`,
+    );
+    setSelected(new Set());
+    qc.invalidateQueries({ queryKey: ["masters", active] });
+    qc.invalidateQueries({ queryKey: ["masters-all"] });
+  };
+
+  const confirmBulkDelete = async () => {
+    const ids = Array.from(selected);
+    setBulkDelete(false);
+    if (ids.length === 0) return;
+    const { error } = await supabase
+      .from("library_masters")
+      .delete()
+      .in("id", ids);
+    if (error) return toast.error(error.message);
+    toast.success(`${ids.length} ${label.toLowerCase()}${ids.length === 1 ? "" : "s"} deleted`);
+    setSelected(new Set());
     qc.invalidateQueries({ queryKey: ["masters", active] });
   };
 
@@ -232,25 +291,90 @@ function LibraryMaster() {
           </div>
         </form>
 
-        <div className="mt-5 overflow-x-auto rounded-lg border">
+        <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="relative w-full max-w-xs">
+            <Input
+              placeholder={`Search ${label.toLowerCase()}…`}
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+          </div>
+          {selected.size > 0 && (
+            <div className="flex flex-wrap items-center gap-2 rounded-md border bg-muted/40 px-3 py-2 text-sm">
+              <span className="text-muted-foreground">
+                {selected.size} selected
+              </span>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={() => bulkSetStatus(true)}
+              >
+                Activate
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={() => bulkSetStatus(false)}
+              >
+                Deactivate
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant="destructive"
+                onClick={() => setBulkDelete(true)}
+              >
+                <Trash2 className="mr-1 h-3.5 w-3.5" /> Delete
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant="ghost"
+                onClick={() => setSelected(new Set())}
+              >
+                Clear
+              </Button>
+            </div>
+          )}
+        </div>
+
+        <div className="mt-3 overflow-x-auto rounded-lg border">
           <Table>
             <TableHeader>
               <TableRow className="bg-muted/50">
+                <TableHead className="w-10">
+                  <Checkbox
+                    checked={allVisibleSelected}
+                    onCheckedChange={(v) => toggleAllVisible(Boolean(v))}
+                    aria-label="Select all"
+                  />
+                </TableHead>
                 <TableHead>Name</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead className="w-28 text-right">Action</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {rows.length === 0 ? (
+              {filteredRows.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={3} className="py-8 text-center text-muted-foreground">
-                    No {label.toLowerCase()} records yet.
+                  <TableCell colSpan={4} className="py-8 text-center text-muted-foreground">
+                    {search.trim()
+                      ? `No ${label.toLowerCase()} matches "${search.trim()}".`
+                      : `No ${label.toLowerCase()} records yet.`}
                   </TableCell>
                 </TableRow>
               ) : (
-                rows.map((r) => (
-                  <TableRow key={r.id}>
+                filteredRows.map((r) => (
+                  <TableRow key={r.id} data-state={selected.has(r.id) ? "selected" : undefined}>
+                    <TableCell>
+                      <Checkbox
+                        checked={selected.has(r.id)}
+                        onCheckedChange={(v) => toggleOne(r.id, Boolean(v))}
+                        aria-label={`Select ${r.name}`}
+                      />
+                    </TableCell>
                     <TableCell className="font-medium">{r.name}</TableCell>
                     <TableCell>
                       {r.status ? (
@@ -303,6 +427,24 @@ function LibraryMaster() {
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction onClick={confirmDelete}>Delete</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={bulkDelete} onOpenChange={setBulkDelete}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              Delete {selected.size} {label.toLowerCase()}
+              {selected.size === 1 ? "" : "s"}?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmBulkDelete}>Delete</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
